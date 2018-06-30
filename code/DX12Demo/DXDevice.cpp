@@ -1,5 +1,6 @@
 #include "DXDevice.h"
 #include "d3dx12.h"
+#include <sstream>
 
 static void abortIfFailHr(HRESULT hr)
 {
@@ -62,6 +63,7 @@ void DXDevice::_CreateDeviceResources()
 {
 	//UUID experimentalFeatures[] = { D3D12ExperimentalShaderModels };
 	//ABORT_IF_FAILED_HR(D3D12EnableExperimentalFeatures(_countof(experimentalFeatures), experimentalFeatures, nullptr, nullptr));
+	
 	ABORT_IF_FAILED_HR(D3D12CreateDevice(m_adapter.Get(), D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(&m_device)));
 
 	D3D12_COMMAND_QUEUE_DESC queueDesc = {};
@@ -77,6 +79,7 @@ void DXDevice::_CreateDeviceResources()
 	}
 
 	ABORT_IF_FAILED_HR(m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_commandAllocator[0].Get(), nullptr, IID_PPV_ARGS(&m_commandList)));
+	m_commandList->SetName(L"MainCommandList");
 
 	ABORT_IF_FAILED_HR(m_commandList->Close());
 
@@ -156,6 +159,9 @@ void DXDevice::_CreateWindow(WinParam winParam)
 	{
 		ABORT_IF_FAILED_HR(m_swapChain->GetBuffer(i, IID_PPV_ARGS(&m_renderTargets[i])));
 		m_device->CreateRenderTargetView(m_renderTargets[i].Get(), nullptr, rtvHandle);
+		std::wostringstream wss;
+		wss << L"RenderTarget_" << i;
+		m_renderTargets[i]->SetName(wss.str().c_str());
 		rtvHandle.ptr += rtvDescSize;
 	}
 }
@@ -185,6 +191,10 @@ void DXDevice::Run()
 
 void DXDevice::End()
 {
+	// Transition the render target to the state that allows it to be presented to the display.
+	D3D12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+	m_commandList->ResourceBarrier(1, &barrier);
+
 	ABORT_IF_FAILED_HR(m_commandList->Close());
 	ID3D12CommandList *commandLists[] = { m_commandList.Get() };
 	m_commandQueue->ExecuteCommandLists(ARRAYSIZE(commandLists), commandLists);
