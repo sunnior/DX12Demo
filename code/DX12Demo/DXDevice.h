@@ -79,17 +79,22 @@ private:
 private:
 	void _EnableRaytracing();
 	void _CreateRaytracingDevice();
+
 	void _CreateAccelerationStructures();
 	void _CreateGeometry();
-	void _CreateUploadBuffer(Microsoft::WRL::ComPtr<ID3D12Resource>& buffer, const void *pData, UINT64 datasize, const wchar_t* resourceName = nullptr);
+	void _CreateBottomLevelAS();
 
+	void _CreateUploadBuffer(Microsoft::WRL::ComPtr<ID3D12Resource>& buffer, const void *pData, UINT64 datasize, const wchar_t* resourceName = nullptr);
+	void _CreateUAVBuffer(UINT64 bufferSize, ID3D12Resource **ppResource, D3D12_RESOURCE_STATES initialResourceState = D3D12_RESOURCE_STATE_COMMON, const wchar_t* resourceName = nullptr);
 private:
 	Microsoft::WRL::ComPtr<ID3D12RaytracingFallbackDevice> m_raytracingDevice;
+	Microsoft::WRL::ComPtr<ID3D12RaytracingFallbackCommandList> m_raytracingCommandList;
 
 	Microsoft::WRL::ComPtr<ID3D12Resource> m_vertexBuffer;
 	Microsoft::WRL::ComPtr<ID3D12Resource> m_indexBuffer;
 
-
+	Microsoft::WRL::ComPtr<ID3D12Resource> m_bottomLevelAccelerationStructure;
+	Microsoft::WRL::ComPtr<ID3D12Resource> m_topLevelAccelerationStructure;
 };
 
 #endif // _DEBUG
