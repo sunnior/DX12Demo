@@ -5,6 +5,9 @@
 #include <d3d12.h>
 #include <wrl.h>
 #include <dxgi1_6.h>
+#include "d3dx12.h"
+#include "d3d12_1.h"
+#include "D3D12RaytracingFallback.h"
 
 class DXDevice
 {
@@ -52,7 +55,7 @@ private:
 	D3D12_RECT m_scissorRect;
 
 private:
-	Microsoft::WRL::ComPtr<IDXGIFactory2> m_factory;
+	Microsoft::WRL::ComPtr<IDXGIFactory4> m_factory;
 	Microsoft::WRL::ComPtr<IDXGIAdapter1> m_adapter;
 	Microsoft::WRL::ComPtr<IDXGISwapChain3> m_swapChain;
 
@@ -72,6 +75,20 @@ private:
 	Microsoft::WRL::Wrappers::Event m_fenceEvent;
 
 	UINT m_frameIndex;
+
+private:
+	void _EnableRaytracing();
+	void _CreateRaytracingDevice();
+	void _CreateAccelerationStructures();
+	void _CreateGeometry();
+	void _CreateUploadBuffer(Microsoft::WRL::ComPtr<ID3D12Resource>& buffer, const void *pData, UINT64 datasize, const wchar_t* resourceName = nullptr);
+
+private:
+	Microsoft::WRL::ComPtr<ID3D12RaytracingFallbackDevice> m_raytracingDevice;
+
+	Microsoft::WRL::ComPtr<ID3D12Resource> m_vertexBuffer;
+	Microsoft::WRL::ComPtr<ID3D12Resource> m_indexBuffer;
+
 
 };
 

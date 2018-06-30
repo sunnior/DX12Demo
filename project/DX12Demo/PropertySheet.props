@@ -8,7 +8,11 @@
     <OutDir>$(RootDir)output\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(RootDir)output\intermediate\$(Platform)\$(Configuration)\$(ProjectName)\</IntDir>
   </PropertyGroup>
-  <ItemDefinitionGroup />
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(RootDir)code\DXRSDK\include</AdditionalIncludeDirectories>
+    </ClCompile>
+  </ItemDefinitionGroup>
   <ItemGroup>
     <BuildMacro Include="RootDir">
       <Value>$(RootDir)</Value>

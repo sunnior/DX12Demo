@@ -1,6 +1,7 @@
 #include "DXDevice.h"
-#include "d3dx12.h"
 #include <sstream>
+#include <DirectXMath.h>
+#include <winerror.h>
 
 static void abortIfFailHr(HRESULT hr)
 {
@@ -14,15 +15,30 @@ static void abortIfFailHr(HRESULT hr)
 #define ABORT_IF_FAILED(exp)      if(!(exp)) abort()
 
 using Microsoft::WRL::ComPtr;
+using DirectX::XMFLOAT3;
 
 DXDevice::DXDevice(WinParam winParam)
 	: m_aspectRatio(winParam.width / static_cast<float>(winParam.height))
 	, m_viewport{ 0.0f, 0.0f, static_cast<FLOAT>(winParam.width), static_cast<FLOAT>(winParam.height), D3D12_MIN_DEPTH, D3D12_MAX_DEPTH }
 	, m_scissorRect{ 0, 0, winParam.width, winParam.height }
 {
+	CreateDXGIFactory1(IID_PPV_ARGS(&m_factory));
+
+	D3D12CreateDevice(nullptr, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&m_device));
+	D3D12CreateRaytracingFallbackDevice(m_device.Get(), CreateRaytracingFallbackDeviceFlags::None, 0, IID_PPV_ARGS(&m_raytracingDevice));
+
+
 	_CreateDXGIAdapter();
+
+	_EnableRaytracing();
+
 	_CreateDeviceResources();
+	_CreateRaytracingDevice();
+
 	_CreateWindow(winParam);
+
+	_CreateAccelerationStructures();
+
 }
 
 DXDevice::~DXDevice()
@@ -61,9 +77,6 @@ void DXDevice::_CreateDXGIAdapter()
 
 void DXDevice::_CreateDeviceResources()
 {
-	//UUID experimentalFeatures[] = { D3D12ExperimentalShaderModels };
-	//ABORT_IF_FAILED_HR(D3D12EnableExperimentalFeatures(_countof(experimentalFeatures), experimentalFeatures, nullptr, nullptr));
-	
 	ABORT_IF_FAILED_HR(D3D12CreateDevice(m_adapter.Get(), D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(&m_device)));
 
 	D3D12_COMMAND_QUEUE_DESC queueDesc = {};
@@ -222,4 +235,88 @@ void DXDevice::Fence::Wait(Microsoft::WRL::Wrappers::Event& fenceEvent)
 		ABORT_IF_FAILED(m_fence->SetEventOnCompletion(Status_Idle, fenceEvent.Get()));
 		WaitForSingleObjectEx(fenceEvent.Get(), INFINITE, FALSE);
 	}
+}
+
+void DXDevice::_EnableRaytracing()
+{
+	UUID experimentalFeaturesSMandDXR[] = { D3D12ExperimentalShaderModels, D3D12RaytracingPrototype };
+	UUID experimentalFeaturesSM[] = { D3D12ExperimentalShaderModels };
+
+	ComPtr<ID3D12Device> testDevice;
+	// D3D12CreateDevice needs to pass after enabling experimental features to successfully declare support.
+	if (FAILED(D3D12EnableExperimentalFeatures(ARRAYSIZE(experimentalFeaturesSMandDXR), experimentalFeaturesSMandDXR, nullptr, nullptr))
+		|| FAILED(D3D12CreateDevice(nullptr, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&testDevice))))
+	{
+		ABORT_IF_FAILED((SUCCEEDED(D3D12EnableExperimentalFeatures(ARRAYSIZE(experimentalFeaturesSM), experimentalFeaturesSM, nullptr, nullptr))
+			&& SUCCEEDED(D3D12CreateDevice(nullptr, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&testDevice)))));
+	}
+}
+
+void DXDevice::_CreateRaytracingDevice()
+{
+	ABORT_IF_FAILED_HR(D3D12CreateRaytracingFallbackDevice(m_device.Get(), CreateRaytracingFallbackDeviceFlags::None, 0, IID_PPV_ARGS(&m_raytracingDevice)));
+}
+
+void DXDevice::_CreateAccelerationStructures()
+{
+	_CreateGeometry();
+
+	D3D12_RAYTRACING_GEOMETRY_DESC geometryDesc = {};
+	geometryDesc.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
+	geometryDesc.Triangles.IndexBuffer = m_indexBuffer->GetGPUVirtualAddress();
+	geometryDesc.Triangles.IndexCount = static_cast<UINT>(m_indexBuffer->GetDesc().Width) / sizeof(UINT16);
+	geometryDesc.Triangles.IndexFormat = DXGI_FORMAT_R16_UINT;
+	geometryDesc.Triangles.Transform = 0;
+	geometryDesc.Triangles.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
+	geometryDesc.Triangles.VertexCount = static_cast<UINT>(m_vertexBuffer->GetDesc().Width) / sizeof(XMFLOAT3);
+	geometryDesc.Triangles.VertexBuffer.StartAddress = m_vertexBuffer->GetGPUVirtualAddress();
+	geometryDesc.Triangles.VertexBuffer.StrideInBytes = sizeof(XMFLOAT3);
+	geometryDesc.Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE;
+
+	// Get required sizes for an acceleration structure.
+	D3D12_GET_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO_DESC prebuildInfoDesc{};
+	prebuildInfoDesc.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
+	prebuildInfoDesc.NumDescs = 1;
+	prebuildInfoDesc.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
+	prebuildInfoDesc.pGeometryDescs = &geometryDesc;
+
+	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO bottomLevelPrebuildInfo{};
+	m_raytracingDevice->GetRaytracingAccelerationStructurePrebuildInfo(&prebuildInfoDesc, &bottomLevelPrebuildInfo);
+
+}
+
+void DXDevice::_CreateGeometry()
+{
+	const UINT16 indices[] =
+	{
+		0, 1, 2,
+	}; 
+
+	const XMFLOAT3 vertices[] =
+	{
+		XMFLOAT3(0.0f, 0.7f, 1.0f),
+		XMFLOAT3(0.7f, 0.7f, 1.0f),
+		XMFLOAT3(-0.7f, 0.7f, 1.0f),
+	};
+
+	_CreateUploadBuffer(m_vertexBuffer, vertices, sizeof(vertices), L"VertexBuffer");
+	_CreateUploadBuffer(m_indexBuffer, indices, sizeof(indices), L"IndexBuffer");
+
+}
+
+void DXDevice::_CreateUploadBuffer(Microsoft::WRL::ComPtr<ID3D12Resource>& buffer, const void *pData, UINT64 datasize, const wchar_t* resourceName /*= nullptr*/)
+{
+
+	ABORT_IF_FAILED_HR(m_device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD), D3D12_HEAP_FLAG_NONE, &CD3DX12_RESOURCE_DESC::Buffer(datasize), D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&buffer)));
+
+
+	if (resourceName)
+	{
+		buffer->SetName(resourceName);
+	}
+
+	void* pMappedData = nullptr;
+	buffer->Map(0, nullptr, &pMappedData);
+	memcpy(pMappedData, pData, datasize);
+	buffer->Unmap(0, nullptr);
 }
