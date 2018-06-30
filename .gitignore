@@ -1,0 +1,4 @@
+﻿output
+.vs
+*.vcxproj.filters
+*.vcxproj.user
