@@ -28,6 +28,7 @@ DXDevice::DXDevice(WinParam winParam)
 
 	_CreateDeviceResources();
 	_CreateRaytracingDevice();
+	_CreateRaytracingDescriptorHeaps();
 
 	_CreateWindow(winParam);
 
@@ -226,7 +227,7 @@ void DXDevice::Fence::Wait(Microsoft::WRL::Wrappers::Event& fenceEvent)
 {
 	if (m_fence->GetCompletedValue() != Status_Idle)
 	{
-		ABORT_IF_FAILED(m_fence->SetEventOnCompletion(Status_Idle, fenceEvent.Get()));
+		ABORT_IF_FAILED_HR(m_fence->SetEventOnCompletion(Status_Idle, fenceEvent.Get()));
 		WaitForSingleObjectEx(fenceEvent.Get(), INFINITE, FALSE);
 	}
 }
@@ -248,12 +249,24 @@ void DXDevice::_CreateRaytracingDevice()
 
 }
 
+void DXDevice::_CreateRaytracingDescriptorHeaps()
+{
+	D3D12_DESCRIPTOR_HEAP_DESC descriptorHeapDesc = {};
+	// Allocate heap for plenty of descriptors
+	descriptorHeapDesc.NumDescriptors = 1;
+	descriptorHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+	descriptorHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+	descriptorHeapDesc.NodeMask = 0;
+	m_device->CreateDescriptorHeap(&descriptorHeapDesc, IID_PPV_ARGS(&m_wrapperPointerDescriptorHeap));
+}
+
 void DXDevice::_CreateAccelerationStructures()
 {
 	_CreateGeometry();
 
-	_CreateBottomLevelAS();
-
+	ComPtr<ID3D12Resource> instanceDescs;
+	_CreateBottomLevelAS(&instanceDescs);
+	_CreateTopLevelAS(instanceDescs.Get());
 }
 
 void DXDevice::_CreateGeometry()
@@ -270,12 +283,12 @@ void DXDevice::_CreateGeometry()
 		XMFLOAT3(-0.7f, 0.7f, 1.0f),
 	};
 
-	_CreateUploadBuffer(m_vertexBuffer, vertices, sizeof(vertices), L"VertexBuffer");
-	_CreateUploadBuffer(m_indexBuffer, indices, sizeof(indices), L"IndexBuffer");
+	_CreateUploadBuffer(&m_vertexBuffer, vertices, sizeof(vertices), L"VertexBuffer");
+	_CreateUploadBuffer(&m_indexBuffer, indices, sizeof(indices), L"IndexBuffer");
 
 }
 
-void DXDevice::_CreateBottomLevelAS()
+void DXDevice::_CreateBottomLevelAS(ID3D12Resource** ppInstanceDescs)
 {
 	D3D12_RAYTRACING_GEOMETRY_DESC geometryDesc = {};
 	geometryDesc.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
@@ -302,10 +315,22 @@ void DXDevice::_CreateBottomLevelAS()
 	ABORT_IF_FAILED(bottomLevelPrebuildInfo.ResultDataMaxSizeInBytes > 0);
 
 	D3D12_RESOURCE_STATES initialResourceState = m_raytracingDevice->GetAccelerationStructureResourceState();
-	_CreateUAVBuffer(bottomLevelPrebuildInfo.ResultDataMaxSizeInBytes, &m_bottomLevelAccelerationStructure, initialResourceState, L"BottomLevelAccelerationStructure");
+	_CreateUAVBuffer(&m_bottomLevelAccelerationStructure, bottomLevelPrebuildInfo.ResultDataMaxSizeInBytes, initialResourceState, L"BottomLevelAccelerationStructure");
 
 	ComPtr<ID3D12Resource> scratchResource;
-	_CreateUAVBuffer(bottomLevelPrebuildInfo.ScratchDataSizeInBytes, &scratchResource, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, L"ScratchResource");
+	_CreateUAVBuffer(&scratchResource, bottomLevelPrebuildInfo.ScratchDataSizeInBytes, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, L"ScratchResource");
+
+	// Create an instance desc for the bottom level acceleration structure.
+	D3D12_RAYTRACING_FALLBACK_INSTANCE_DESC instanceDesc = {};
+	FLOAT trans[] = { 1, 0, 0, 0,
+		0, 1, 0, 0,
+		0, 0, 1, 0 };
+	memcpy(instanceDesc.Transform, trans, sizeof(trans));
+	instanceDesc.Transform[0] = instanceDesc.Transform[5] = instanceDesc.Transform[10] = 1;
+	instanceDesc.InstanceMask = 1;
+	UINT numBufferElements = static_cast<UINT>(bottomLevelPrebuildInfo.ResultDataMaxSizeInBytes) / sizeof(UINT32);
+	instanceDesc.AccelerationStructure = _CreateWrappedPointer(m_bottomLevelAccelerationStructure.Get(), numBufferElements);
+	_CreateUploadBuffer(ppInstanceDescs, &instanceDesc, sizeof(instanceDesc), L"InstanceDescs");
 
 	// Bottom Level Acceleration Structure desc
 	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC bottomLevelBuildDesc{};
@@ -319,6 +344,8 @@ void DXDevice::_CreateBottomLevelAS()
 		bottomLevelBuildDesc.pGeometryDescs = &geometryDesc;
 	}
 
+	ABORT_IF_FAILED_HR(m_commandAllocator[0]->Reset());
+	ABORT_IF_FAILED_HR(m_commandList->Reset(m_commandAllocator[0].Get(), m_dummyPipelineState.Get()));
 	m_raytracingCommandList->BuildRaytracingAccelerationStructure(&bottomLevelBuildDesc);
 	m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::UAV(m_bottomLevelAccelerationStructure.Get()));
 	m_commandList->Close();
@@ -327,27 +354,74 @@ void DXDevice::_CreateBottomLevelAS()
 
 	m_fences[0].Kick(m_commandQueue);
 	m_fences[0].Wait(m_fenceEvent);
-
 }
 
-void DXDevice::_CreateUploadBuffer(Microsoft::WRL::ComPtr<ID3D12Resource>& buffer, const void *pData, UINT64 datasize, const wchar_t* resourceName /*= nullptr*/)
+void DXDevice::_CreateTopLevelAS(ID3D12Resource* pInstanceDescs)
+{
+	// Get required sizes for an acceleration structure.
+	D3D12_GET_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO_DESC prebuildInfoDesc{};
+	prebuildInfoDesc.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
+	prebuildInfoDesc.NumDescs = 1;
+	prebuildInfoDesc.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
+	prebuildInfoDesc.pGeometryDescs = nullptr;
+
+	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO topLevelPrebuildInfo{};
+
+	m_raytracingDevice->GetRaytracingAccelerationStructurePrebuildInfo(&prebuildInfoDesc, &topLevelPrebuildInfo);
+	
+	ABORT_IF_FAILED(topLevelPrebuildInfo.ResultDataMaxSizeInBytes > 0);
+
+	ComPtr<ID3D12Resource> scratchResource;
+	_CreateUAVBuffer(&scratchResource, topLevelPrebuildInfo.ScratchDataSizeInBytes, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, L"ScratchResource");
+	D3D12_RESOURCE_STATES initialResourceState = m_raytracingDevice->GetAccelerationStructureResourceState();
+
+	_CreateUAVBuffer(&m_topLevelAccelerationStructure, topLevelPrebuildInfo.ResultDataMaxSizeInBytes, initialResourceState, L"TopLevelAccelerationStructure");
+
+	// Top Level Acceleration Structure desc
+	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC topLevelBuildDesc{};
+	{
+		topLevelBuildDesc.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
+		topLevelBuildDesc.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE;
+
+		topLevelBuildDesc.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
+		topLevelBuildDesc.DestAccelerationStructureData = { m_topLevelAccelerationStructure->GetGPUVirtualAddress(), topLevelPrebuildInfo.ResultDataMaxSizeInBytes };
+		topLevelBuildDesc.NumDescs = 1;
+		topLevelBuildDesc.pGeometryDescs = nullptr;
+		topLevelBuildDesc.InstanceDescs = pInstanceDescs->GetGPUVirtualAddress();
+		topLevelBuildDesc.ScratchAccelerationStructureData = { scratchResource->GetGPUVirtualAddress(), scratchResource->GetDesc().Width };
+	}
+
+	ABORT_IF_FAILED_HR(m_commandAllocator[0]->Reset());
+	ABORT_IF_FAILED_HR(m_commandList->Reset(m_commandAllocator[0].Get(), m_dummyPipelineState.Get()));
+	ID3D12DescriptorHeap *pDescriptorHeaps[] = { m_wrapperPointerDescriptorHeap.Get() };
+	m_raytracingCommandList->SetDescriptorHeaps(ARRAYSIZE(pDescriptorHeaps), pDescriptorHeaps);
+	m_raytracingCommandList->BuildRaytracingAccelerationStructure(&topLevelBuildDesc);
+	m_commandList->Close();
+	ID3D12CommandList *commandLists[] = { m_commandList.Get() };
+	m_commandQueue->ExecuteCommandLists(ARRAYSIZE(commandLists), commandLists);
+
+	m_fences[0].Kick(m_commandQueue);
+	m_fences[0].Wait(m_fenceEvent);
+}
+
+void DXDevice::_CreateUploadBuffer(ID3D12Resource **ppResource, const void *pData, UINT64 datasize, const wchar_t* resourceName /*= nullptr*/)
 {
 
-	ABORT_IF_FAILED_HR(m_device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD), D3D12_HEAP_FLAG_NONE, &CD3DX12_RESOURCE_DESC::Buffer(datasize), D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&buffer)));
+	ABORT_IF_FAILED_HR(m_device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD), D3D12_HEAP_FLAG_NONE, &CD3DX12_RESOURCE_DESC::Buffer(datasize), D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(ppResource)));
 
 
 	if (resourceName)
 	{
-		buffer->SetName(resourceName);
+		(*ppResource)->SetName(resourceName);
 	}
 
 	void* pMappedData = nullptr;
-	buffer->Map(0, nullptr, &pMappedData);
+	(*ppResource)->Map(0, nullptr, &pMappedData);
 	memcpy(pMappedData, pData, datasize);
-	buffer->Unmap(0, nullptr);
+	(*ppResource)->Unmap(0, nullptr);
 }
 
-void DXDevice::_CreateUAVBuffer(UINT64 bufferSize, ID3D12Resource **ppResource, D3D12_RESOURCE_STATES initialResourceState /*= D3D12_RESOURCE_STATE_COMMON*/, const wchar_t* resourceName /*= nullptr*/)
+void DXDevice::_CreateUAVBuffer(ID3D12Resource **ppResource, UINT64 bufferSize, D3D12_RESOURCE_STATES initialResourceState /*= D3D12_RESOURCE_STATE_COMMON*/, const wchar_t* resourceName /*= nullptr*/)
 {
 	ABORT_IF_FAILED_HR(m_device->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
@@ -360,4 +434,22 @@ void DXDevice::_CreateUAVBuffer(UINT64 bufferSize, ID3D12Resource **ppResource, 
 	{
 		(*ppResource)->SetName(resourceName);
 	}
+}
+
+WRAPPED_GPU_POINTER DXDevice::_CreateWrappedPointer(ID3D12Resource* pResource, UINT bufferNumElements)
+{
+	//assert(m_raytracingType == RaytracingType::FallbackLayer);
+
+	D3D12_UNORDERED_ACCESS_VIEW_DESC rawBufferUavDesc = {};
+	rawBufferUavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
+	rawBufferUavDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_RAW;
+	rawBufferUavDesc.Format = DXGI_FORMAT_R32_TYPELESS;
+	rawBufferUavDesc.Buffer.NumElements = bufferNumElements;
+
+
+	// Only compute fallback requires a valid descriptor index when creating a wrapped pointer.
+	D3D12_CPU_DESCRIPTOR_HANDLE bottomLevelDescriptor = m_wrapperPointerDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+
+	m_device->CreateUnorderedAccessView(pResource, nullptr, &rawBufferUavDesc, bottomLevelDescriptor);
+	return m_raytracingDevice->GetWrappedPointerSimple(0, pResource->GetGPUVirtualAddress());
 }

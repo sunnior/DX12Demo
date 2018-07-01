@@ -21,9 +21,10 @@ public:
 
 private:
 	struct Fence {
+		//due to SetEventOnCompletion, Status_Idle must be bigger than Status_Busy.
 		enum Status {
-			Status_Idle,
-			Status_Busy,
+			Status_Busy = 0,
+			Status_Idle = 1,
 		};
 		void Init(Microsoft::WRL::ComPtr<ID3D12Device>& device);
 
@@ -79,13 +80,17 @@ private:
 private:
 	void _EnableRaytracing();
 	void _CreateRaytracingDevice();
+	void _CreateRaytracingDescriptorHeaps();
 
 	void _CreateAccelerationStructures();
 	void _CreateGeometry();
-	void _CreateBottomLevelAS();
+	void _CreateBottomLevelAS(ID3D12Resource** ppInstanceDescs);
+	void _CreateTopLevelAS(ID3D12Resource* pInstanceDescs);
 
-	void _CreateUploadBuffer(Microsoft::WRL::ComPtr<ID3D12Resource>& buffer, const void *pData, UINT64 datasize, const wchar_t* resourceName = nullptr);
-	void _CreateUAVBuffer(UINT64 bufferSize, ID3D12Resource **ppResource, D3D12_RESOURCE_STATES initialResourceState = D3D12_RESOURCE_STATE_COMMON, const wchar_t* resourceName = nullptr);
+	void _CreateUploadBuffer(ID3D12Resource **ppResource, const void *pData, UINT64 datasize, const wchar_t* resourceName = nullptr);
+	void _CreateUAVBuffer(ID3D12Resource **ppResource, UINT64 bufferSize, D3D12_RESOURCE_STATES initialResourceState = D3D12_RESOURCE_STATE_COMMON, const wchar_t* resourceName = nullptr);
+
+	WRAPPED_GPU_POINTER _CreateWrappedPointer(ID3D12Resource* pResource, UINT bufferNumElements);
 private:
 	Microsoft::WRL::ComPtr<ID3D12RaytracingFallbackDevice> m_raytracingDevice;
 	Microsoft::WRL::ComPtr<ID3D12RaytracingFallbackCommandList> m_raytracingCommandList;
@@ -95,6 +100,9 @@ private:
 
 	Microsoft::WRL::ComPtr<ID3D12Resource> m_bottomLevelAccelerationStructure;
 	Microsoft::WRL::ComPtr<ID3D12Resource> m_topLevelAccelerationStructure;
+
+	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> m_wrapperPointerDescriptorHeap;
+
 };
 
 #endif // _DEBUG
