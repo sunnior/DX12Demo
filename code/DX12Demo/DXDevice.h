@@ -52,8 +52,11 @@ private:
 
 private:
 	float m_aspectRatio;
+	float m_winWidth;
+	float m_winHeight;
 	D3D12_VIEWPORT m_viewport;
 	D3D12_RECT m_scissorRect;
+	DXGI_FORMAT m_backbufferFormat;
 
 private:
 	Microsoft::WRL::ComPtr<IDXGIFactory4> m_factory;
@@ -87,11 +90,49 @@ private:
 	void _CreateBottomLevelAS(ID3D12Resource** ppInstanceDescs);
 	void _CreateTopLevelAS(ID3D12Resource* pInstanceDescs);
 
+	void _CreateRootSignatures();
 	void _CreateRaytracingPSO();
+	void _CreateShaderResources();
+	void _CreateShaderTables();
+
+private:
+	enum class GlobalRootSignatureParams {
+		OutputViewSlot = 0,
+		AccelerationStructureSlot,
+		Count
+	};
+
+	enum class LocalRootSignatureParams {
+		ViewportConstantSlot = 0,
+		Count
+	};
+
+	enum class RaytracingDescriptorHeapSlot {
+		OutputTexture,
+		BottomLevelWrapperPointer,
+		TopLevelWrapperPointer,
+		Count
+	};
+
+	struct Viewport
+	{
+		float Left;
+		float Top;
+		float Right;
+		float Bottom;
+	};
+
+	struct RayGenConstantBuffer
+	{
+		Viewport rayGenViewport;
+		Viewport rayGenStencil;
+	};
 
 private:
 	Microsoft::WRL::ComPtr<ID3D12RaytracingFallbackDevice> m_raytracingDevice;
 	Microsoft::WRL::ComPtr<ID3D12RaytracingFallbackCommandList> m_raytracingCommandList;
+
+	Microsoft::WRL::ComPtr<ID3D12Resource> m_raytracingOutput;
 
 	Microsoft::WRL::ComPtr<ID3D12Resource> m_vertexBuffer;
 	Microsoft::WRL::ComPtr<ID3D12Resource> m_indexBuffer;
@@ -99,7 +140,23 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12Resource> m_bottomLevelAccelerationStructure;
 	Microsoft::WRL::ComPtr<ID3D12Resource> m_topLevelAccelerationStructure;
 
-	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> m_wrapperPointerDescriptorHeap;
+	Microsoft::WRL::ComPtr<ID3D12RootSignature> m_raytracingGlobalRootSignature;
+	Microsoft::WRL::ComPtr<ID3D12RootSignature> m_raytracingLocalRootSignature;
+
+	Microsoft::WRL::ComPtr<ID3D12RaytracingFallbackStateObject> m_stateObject;
+
+	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> m_raytracingDescriptorHeap;
+	UINT m_descriptorSize;
+
+	D3D12_GPU_DESCRIPTOR_HANDLE m_raytracingOutputResourceUAVGpuDescriptor;
+
+	WRAPPED_GPU_POINTER m_topLevelAccelerationStructurePointer;
+
+	RayGenConstantBuffer m_rayGenCB;
+
+	Microsoft::WRL::ComPtr<ID3D12Resource> m_missShaderTable;
+	Microsoft::WRL::ComPtr<ID3D12Resource> m_hitGroupShaderTable;
+	Microsoft::WRL::ComPtr<ID3D12Resource> m_rayGenShaderTable;
 
 };
 
