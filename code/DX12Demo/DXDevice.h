@@ -87,10 +87,8 @@ private:
 	void _CreateBottomLevelAS(ID3D12Resource** ppInstanceDescs);
 	void _CreateTopLevelAS(ID3D12Resource* pInstanceDescs);
 
-	void _CreateUploadBuffer(ID3D12Resource **ppResource, const void *pData, UINT64 datasize, const wchar_t* resourceName = nullptr);
-	void _CreateUAVBuffer(ID3D12Resource **ppResource, UINT64 bufferSize, D3D12_RESOURCE_STATES initialResourceState = D3D12_RESOURCE_STATE_COMMON, const wchar_t* resourceName = nullptr);
+	void _CreateRaytracingPSO();
 
-	WRAPPED_GPU_POINTER _CreateWrappedPointer(ID3D12Resource* pResource, UINT bufferNumElements);
 private:
 	Microsoft::WRL::ComPtr<ID3D12RaytracingFallbackDevice> m_raytracingDevice;
 	Microsoft::WRL::ComPtr<ID3D12RaytracingFallbackCommandList> m_raytracingCommandList;

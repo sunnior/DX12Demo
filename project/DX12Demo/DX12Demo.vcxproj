@@ -75,12 +75,14 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\..\code\DX12Demo\DXDevice.cpp" />
+    <ClCompile Include="..\..\code\DX12Demo\DXDevice_Helper.cpp" />
     <ClCompile Include="..\..\code\DX12Demo\Engine.cpp" />
     <ClCompile Include="..\..\code\DX12Demo\main.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\code\DX12Demo\d3dx12.h" />
     <ClInclude Include="..\..\code\DX12Demo\DXDevice.h" />
+    <ClInclude Include="..\..\code\DX12Demo\DXDevice_Helper.h" />
     <ClInclude Include="..\..\code\DX12Demo\Engine.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
