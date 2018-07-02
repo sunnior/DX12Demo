@@ -318,9 +318,9 @@ void DXDevice::_CreateGeometry()
 
 	const XMFLOAT3 vertices[] =
 	{
-		XMFLOAT3(0.0f, 0.7f, 1.0f),
-		XMFLOAT3(0.7f, 0.7f, 1.0f),
+		XMFLOAT3(0.0f, -0.7f, 1.0f),
 		XMFLOAT3(-0.7f, 0.7f, 1.0f),
+		XMFLOAT3(0.7f, 0.7f, 1.0f),
 	};
 
 	_CreateUploadBuffer(m_device.Get(), &m_vertexBuffer, vertices, sizeof(vertices), L"VertexBuffer");
