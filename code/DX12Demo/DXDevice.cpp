@@ -14,6 +14,8 @@ static const wchar_t* s_missShaderName = L"MyMissShader";
 
 using Microsoft::WRL::ComPtr;
 using DirectX::XMFLOAT3;
+using DirectX::XMFLOAT4;
+using DirectX::XMFLOAT2;
 
 DXDevice::DXDevice(WinParam winParam)
 	: m_aspectRatio{ winParam.width / static_cast<float>(winParam.height) }
@@ -318,9 +320,9 @@ void DXDevice::_CreateGeometry()
 
 	const XMFLOAT3 vertices[] =
 	{
-		XMFLOAT3(0.0f, -0.7f, 1.0f),
-		XMFLOAT3(-0.7f, 0.7f, 1.0f),
-		XMFLOAT3(0.7f, 0.7f, 1.0f),
+		XMFLOAT3(0.0f, -0.7f, 0.2f),
+		XMFLOAT3(-0.7f, 0.7f, 0.2f),
+		XMFLOAT3(0.7f, 0.7f, 0.2f),
 	};
 
 	_CreateUploadBuffer(m_device.Get(), &m_vertexBuffer, vertices, sizeof(vertices), L"VertexBuffer");
@@ -490,6 +492,8 @@ void DXDevice::_CreateRaytracingPSO()
 
 	auto shaderConfig = dxrPipeline.CreateSubobject<CD3D12_RAYTRACING_SHADER_CONFIG_SUBOBJECT>();
 	//payload and attributes' size in bytes
+	UINT payloadSize = sizeof(XMFLOAT4); // float4 pixelColor
+	UINT attrSize = sizeof(XMFLOAT2); // float2 barycentrics
 	shaderConfig->Config(4, 8);
 
 	auto shaderConfigAssociation = dxrPipeline.CreateSubobject<CD3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION_SUBOBJECT>();
