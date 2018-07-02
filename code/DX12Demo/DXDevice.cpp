@@ -1,6 +1,5 @@
 #include "DXDevice.h"
 #include <sstream>
-#include <DirectXMath.h>
 #include <winerror.h>
 #include "D3D12RaytracingPrototypeHelpers.hpp"
 #include "DXDevice_Helper.h"
@@ -13,9 +12,7 @@ static const wchar_t* s_closestHitShaderName = L"MyClosestHitShader";
 static const wchar_t* s_missShaderName = L"MyMissShader";
 
 using Microsoft::WRL::ComPtr;
-using DirectX::XMFLOAT3;
-using DirectX::XMFLOAT4;
-using DirectX::XMFLOAT2;
+using namespace DirectX;
 
 DXDevice::DXDevice(WinParam winParam)
 	: m_aspectRatio{ winParam.width / static_cast<float>(winParam.height) }
@@ -313,18 +310,68 @@ void DXDevice::_CreateAccelerationStructures()
 
 void DXDevice::_CreateGeometry()
 {
-	const UINT16 indices[] =
+	// Cube indices.
+	Index_t indices[] =
 	{
-		0, 1, 2,
-	}; 
+		3,1,0,
+		2,1,3,
 
-	const XMFLOAT3 vertices[] =
-	{
-		XMFLOAT3(0.0f, -0.7f, 0.2f),
-		XMFLOAT3(-0.7f, 0.7f, 0.2f),
-		XMFLOAT3(0.7f, 0.7f, 0.2f),
+		6,4,5,
+		7,4,6,
+
+		11,9,8,
+		10,9,11,
+
+		14,12,13,
+		15,12,14,
+
+		19,17,16,
+		18,17,19,
+
+		22,20,21,
+		23,20,22
 	};
 
+	// Cube vertices positions and corresponding triangle normals.
+	Vertex_t vertices[] =
+	{
+		{ XMFLOAT3(-1.0f, 1.0f, -1.0f), XMFLOAT3(0.0f, 1.0f, 0.0f) },
+	{ XMFLOAT3(1.0f, 1.0f, -1.0f), XMFLOAT3(0.0f, 1.0f, 0.0f) },
+	{ XMFLOAT3(1.0f, 1.0f, 1.0f), XMFLOAT3(0.0f, 1.0f, 0.0f) },
+	{ XMFLOAT3(-1.0f, 1.0f, 1.0f), XMFLOAT3(0.0f, 1.0f, 0.0f) },
+
+	{ XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT3(0.0f, -1.0f, 0.0f) },
+	{ XMFLOAT3(1.0f, -1.0f, -1.0f), XMFLOAT3(0.0f, -1.0f, 0.0f) },
+	{ XMFLOAT3(1.0f, -1.0f, 1.0f), XMFLOAT3(0.0f, -1.0f, 0.0f) },
+	{ XMFLOAT3(-1.0f, -1.0f, 1.0f), XMFLOAT3(0.0f, -1.0f, 0.0f) },
+
+	{ XMFLOAT3(-1.0f, -1.0f, 1.0f), XMFLOAT3(-1.0f, 0.0f, 0.0f) },
+	{ XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT3(-1.0f, 0.0f, 0.0f) },
+	{ XMFLOAT3(-1.0f, 1.0f, -1.0f), XMFLOAT3(-1.0f, 0.0f, 0.0f) },
+	{ XMFLOAT3(-1.0f, 1.0f, 1.0f), XMFLOAT3(-1.0f, 0.0f, 0.0f) },
+
+	{ XMFLOAT3(1.0f, -1.0f, 1.0f), XMFLOAT3(1.0f, 0.0f, 0.0f) },
+	{ XMFLOAT3(1.0f, -1.0f, -1.0f), XMFLOAT3(1.0f, 0.0f, 0.0f) },
+	{ XMFLOAT3(1.0f, 1.0f, -1.0f), XMFLOAT3(1.0f, 0.0f, 0.0f) },
+	{ XMFLOAT3(1.0f, 1.0f, 1.0f), XMFLOAT3(1.0f, 0.0f, 0.0f) },
+
+	{ XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT3(0.0f, 0.0f, -1.0f) },
+	{ XMFLOAT3(1.0f, -1.0f, -1.0f), XMFLOAT3(0.0f, 0.0f, -1.0f) },
+	{ XMFLOAT3(1.0f, 1.0f, -1.0f), XMFLOAT3(0.0f, 0.0f, -1.0f) },
+	{ XMFLOAT3(-1.0f, 1.0f, -1.0f), XMFLOAT3(0.0f, 0.0f, -1.0f) },
+
+	{ XMFLOAT3(-1.0f, -1.0f, 1.0f), XMFLOAT3(0.0f, 0.0f, 1.0f) },
+	{ XMFLOAT3(1.0f, -1.0f, 1.0f), XMFLOAT3(0.0f, 0.0f, 1.0f) },
+	{ XMFLOAT3(1.0f, 1.0f, 1.0f), XMFLOAT3(0.0f, 0.0f, 1.0f) },
+	{ XMFLOAT3(-1.0f, 1.0f, 1.0f), XMFLOAT3(0.0f, 0.0f, 1.0f) },
+	};
+
+	for (int i = 0; i < 24; ++i)
+	{
+		vertices[i][0].x *= 0.3;
+		vertices[i][0].y *= 0.3;
+		vertices[i][0].z *= 0.3;
+	}
 	_CreateUploadBuffer(m_device.Get(), &m_vertexBuffer, vertices, sizeof(vertices), L"VertexBuffer");
 	_CreateUploadBuffer(m_device.Get(), &m_indexBuffer, indices, sizeof(indices), L"IndexBuffer");
 
@@ -335,13 +382,13 @@ void DXDevice::_CreateBottomLevelAS(ID3D12Resource** ppInstanceDescs)
 	D3D12_RAYTRACING_GEOMETRY_DESC geometryDesc = {};
 	geometryDesc.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
 	geometryDesc.Triangles.IndexBuffer = m_indexBuffer->GetGPUVirtualAddress();
-	geometryDesc.Triangles.IndexCount = static_cast<UINT>(m_indexBuffer->GetDesc().Width) / sizeof(UINT16);
+	geometryDesc.Triangles.IndexCount = static_cast<UINT>(m_indexBuffer->GetDesc().Width) / sizeof(Index_t);
 	geometryDesc.Triangles.IndexFormat = DXGI_FORMAT_R16_UINT;
 	geometryDesc.Triangles.Transform = 0;
 	geometryDesc.Triangles.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
-	geometryDesc.Triangles.VertexCount = static_cast<UINT>(m_vertexBuffer->GetDesc().Width) / sizeof(XMFLOAT3);
+	geometryDesc.Triangles.VertexCount = static_cast<UINT>(m_vertexBuffer->GetDesc().Width) / sizeof(Vertex_t);
 	geometryDesc.Triangles.VertexBuffer.StartAddress = m_vertexBuffer->GetGPUVirtualAddress();
-	geometryDesc.Triangles.VertexBuffer.StrideInBytes = sizeof(XMFLOAT3);
+	geometryDesc.Triangles.VertexBuffer.StrideInBytes = sizeof(Vertex_t);
 	//geometryDesc.Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE;
 
 	// Get required sizes for an acceleration structure.
@@ -366,7 +413,7 @@ void DXDevice::_CreateBottomLevelAS(ID3D12Resource** ppInstanceDescs)
 	D3D12_RAYTRACING_FALLBACK_INSTANCE_DESC instanceDesc = {};
 	FLOAT trans[] = { 1, 0, 0, 0,
 					  0, 1, 0, 0,
-					  0, 0, 1, 0 };
+					  0, 0, 1, 2 };
 	memcpy(instanceDesc.Transform, trans, sizeof(trans));
 	instanceDesc.InstanceMask = 1;
 	UINT numBufferElements = static_cast<UINT>(bottomLevelPrebuildInfo.ResultDataMaxSizeInBytes) / sizeof(UINT32);
@@ -578,4 +625,20 @@ void DXDevice::_CreateShaderTables()
 
 	ShaderRecord hitGroupShaderRecord(hitGroupShaderIdentifier, shaderIdentifierSize, &rootArguments, rootArgumentsSize);
 	hitGroupShaderRecord.AllocateAsUploadBuffer(m_device.Get(), &m_hitGroupShaderTable, L"HitGroupShaderTable");
+}
+
+void DXDevice::_InitMatrix()
+{
+	m_eye = { 0.0f, 2.0f, -5.0f, 1.0f };
+	m_at = { 0.0f, 0.0f, 0.0f, 1.0f };
+
+
+	XMVECTOR eye = XMLoadFloat4(&m_eye);
+	XMVECTOR at = XMLoadFloat4(&m_at);
+
+	XMVECTOR right = { 1.0f, 0.0f, 0.0f, 0.0f };
+
+	XMVECTOR direction = XMVector4Normalize(at - eye);
+
+
 }

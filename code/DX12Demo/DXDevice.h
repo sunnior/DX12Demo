@@ -8,6 +8,7 @@
 #include "d3dx12.h"
 #include "d3d12_1.h"
 #include "D3D12RaytracingFallback.h"
+#include <DirectXMath.h>
 
 class DXDevice
 {
@@ -95,6 +96,8 @@ private:
 	void _CreateShaderResources();
 	void _CreateShaderTables();
 
+	void _InitMatrix();
+
 private:
 	enum class GlobalRootSignatureParams {
 		OutputViewSlot = 0,
@@ -157,6 +160,12 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12Resource> m_missShaderTable;
 	Microsoft::WRL::ComPtr<ID3D12Resource> m_hitGroupShaderTable;
 	Microsoft::WRL::ComPtr<ID3D12Resource> m_rayGenShaderTable;
+
+private:
+	typedef UINT16 Index_t;
+	typedef DirectX::XMFLOAT3 Vertex_t[2];
+	DirectX::XMFLOAT4 m_eye;
+	DirectX::XMFLOAT4 m_at;
 
 };
 
