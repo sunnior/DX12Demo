@@ -51,6 +51,7 @@
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>$(RootDir)code\DXRSDK\include;$(RootDir)assets\shader;</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <AdditionalDependencies>FallbackLayer.lib;d3dcompiler.lib;d3d12.lib;dxgi.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -68,6 +69,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>$(RootDir)code\DXRSDK\include;$(RootDir)assets\shader;</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
@@ -86,6 +88,7 @@
     <ClCompile Include="..\..\code\DX12Demo\main.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\assets\shader\RaytracingHlslCompat.h" />
     <ClInclude Include="..\..\code\DX12Demo\d3dx12.h" />
     <ClInclude Include="..\..\code\DX12Demo\DXDevice.h" />
     <ClInclude Include="..\..\code\DX12Demo\DXDevice_Helper.h" />

@@ -37,6 +37,8 @@ DXDevice::DXDevice(WinParam winParam)
 	_CreateRootSignatures();
 	_CreateRaytracingPSO();
 	_CreateShaderTables();
+
+	_InitMatrix();
 }
 
 DXDevice::~DXDevice()
@@ -368,9 +370,9 @@ void DXDevice::_CreateGeometry()
 
 	for (int i = 0; i < 24; ++i)
 	{
-		vertices[i][0].x *= 0.3;
-		vertices[i][0].y *= 0.3;
-		vertices[i][0].z *= 0.3;
+		vertices[i][0].x *= 0.3f;
+		vertices[i][0].y *= 0.3f;
+		vertices[i][0].z *= 0.3f;
 	}
 	_CreateUploadBuffer(m_device.Get(), &m_vertexBuffer, vertices, sizeof(vertices), L"VertexBuffer");
 	_CreateUploadBuffer(m_device.Get(), &m_indexBuffer, indices, sizeof(indices), L"IndexBuffer");
@@ -510,7 +512,6 @@ void DXDevice::_CreateRootSignatures()
 
 	// Local Root Signature
 	{
-		CD3DX12_DESCRIPTOR_RANGE UAVDescriptor;
 		CD3DX12_ROOT_PARAMETER rootParameters[static_cast<int>(LocalRootSignatureParams::Count)];
 		UINT num32BitValues = (sizeof(m_rayGenCB) - 1) / sizeof(UINT32) + 1;
 		rootParameters[static_cast<int>(LocalRootSignatureParams::ViewportConstantSlot)].InitAsConstants(num32BitValues, 0, 0);
@@ -629,7 +630,7 @@ void DXDevice::_CreateShaderTables()
 
 void DXDevice::_InitMatrix()
 {
-	m_eye = { 0.0f, 2.0f, -5.0f, 1.0f };
+	m_eye = { 0.0f, 0.0f, -5.0f, 1.0f };
 	m_at = { 0.0f, 0.0f, 0.0f, 1.0f };
 
 
@@ -639,6 +640,16 @@ void DXDevice::_InitMatrix()
 	XMVECTOR right = { 1.0f, 0.0f, 0.0f, 0.0f };
 
 	XMVECTOR direction = XMVector4Normalize(at - eye);
+	XMStoreFloat4(&m_up, XMVector3Normalize(XMVector3Cross(direction, right)));
+}
 
+void DXDevice::_UpdateMatrix()
+{
+	const float fovAngleY = 45.0f;
 
+	m_sceneCB.cameraPosition = m_eye;
+	XMMATRIX view = XMMatrixLookAtLH(XMLoadFloat4(&m_eye), XMLoadFloat4(&m_at), XMLoadFloat4(&m_up));
+	XMMATRIX proj = XMMatrixPerspectiveFovLH(XMConvertToRadians(fovAngleY), m_aspectRatio, 1.0f, 125.0f);
+	XMMATRIX viewProj = view * proj;
+	XMStoreFloat4x4(&m_sceneCB.projectionToWorld, XMMatrixInverse(nullptr, viewProj));
 }

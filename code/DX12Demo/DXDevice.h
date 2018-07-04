@@ -9,6 +9,7 @@
 #include "d3d12_1.h"
 #include "D3D12RaytracingFallback.h"
 #include <DirectXMath.h>
+#include "RaytracingHlslCompat.h"
 
 class DXDevice
 {
@@ -97,7 +98,7 @@ private:
 	void _CreateShaderTables();
 
 	void _InitMatrix();
-
+	void _UpdateMatrix();
 private:
 	enum class GlobalRootSignatureParams {
 		OutputViewSlot = 0,
@@ -166,6 +167,9 @@ private:
 	typedef DirectX::XMFLOAT3 Vertex_t[2];
 	DirectX::XMFLOAT4 m_eye;
 	DirectX::XMFLOAT4 m_at;
+	DirectX::XMFLOAT4 m_up;
+
+	SceneConstantBuffer m_sceneCB;
 
 };
 
