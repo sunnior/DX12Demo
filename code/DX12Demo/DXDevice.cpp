@@ -5,6 +5,7 @@
 #include "DXDevice_Helper.h"
 
 #define ENABLE_DEBUG_LAYER
+#define USE_NON_NULL_LOCAL_ROOT_SIG
 
 static const wchar_t* s_hitGroupName = L"MyHitGroup";
 static const wchar_t* s_raygenShaderName = L"MyRaygenShader";
@@ -514,11 +515,20 @@ void DXDevice::_CreateRootSignatures()
 	{
 		CD3DX12_ROOT_PARAMETER rootParameters[static_cast<int>(LocalRootSignatureParams::Count)];
 		UINT num32BitValues = (sizeof(m_rayGenCB) - 1) / sizeof(UINT32) + 1;
-		rootParameters[static_cast<int>(LocalRootSignatureParams::ViewportConstantSlot)].InitAsConstants(num32BitValues, 0, 0);
+		rootParameters[static_cast<int>(LocalRootSignatureParams::ViewportConstantSlot)].InitAsConstants(num32BitValues, 1);
 		CD3DX12_ROOT_SIGNATURE_DESC localRootSignatureDesc(ARRAYSIZE(rootParameters), rootParameters);
 		localRootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE;
 		_SerializeAndCreateRaytracingRootSignature(m_raytracingDevice.Get(), localRootSignatureDesc, &m_raytracingLocalRootSignature);
 	}
+
+#ifdef USE_NON_NULL_LOCAL_ROOT_SIG
+	// Empty local root signature
+	{
+		CD3DX12_ROOT_SIGNATURE_DESC localRootSignatureDesc(D3D12_DEFAULT);
+		localRootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE;
+		_SerializeAndCreateRaytracingRootSignature(m_raytracingDevice.Get(), localRootSignatureDesc, &m_raytracingLocalRootSignatureEmpty);
+	}
+#endif
 }
 
 void DXDevice::_CreateRaytracingPSO()
@@ -542,22 +552,37 @@ void DXDevice::_CreateRaytracingPSO()
 	//payload and attributes' size in bytes
 	UINT payloadSize = sizeof(XMFLOAT4); // float4 pixelColor
 	UINT attrSize = sizeof(XMFLOAT2); // float2 barycentrics
-	shaderConfig->Config(4, 8);
+	shaderConfig->Config(payloadSize, attrSize);
 
+/*
 	auto shaderConfigAssociation = dxrPipeline.CreateSubobject<CD3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION_SUBOBJECT>();
 	shaderConfigAssociation->SetSubobjectToAssociate(*shaderConfig);
 	shaderConfigAssociation->AddExport(s_raygenShaderName);
 	shaderConfigAssociation->AddExport(s_missShaderName);
-	shaderConfigAssociation->AddExport(s_hitGroupName);
+	shaderConfigAssociation->AddExport(s_hitGroupName);*/
 
 	auto localRootSignature = dxrPipeline.CreateSubobject<CD3D12_LOCAL_ROOT_SIGNATURE_SUBOBJECT>();
 	localRootSignature->SetRootSignature(m_raytracingLocalRootSignature.Get());
 
 	auto rootSignatureAssociation = dxrPipeline.CreateSubobject<CD3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION_SUBOBJECT>();
 	rootSignatureAssociation->SetSubobjectToAssociate(*localRootSignature);
-	rootSignatureAssociation->AddExport(s_raygenShaderName);
-	rootSignatureAssociation->AddExport(s_missShaderName);
+	//rootSignatureAssociation->AddExport(s_raygenShaderName);
+	//rootSignatureAssociation->AddExport(s_missShaderName);
 	rootSignatureAssociation->AddExport(s_hitGroupName);
+
+#ifdef USE_NON_NULL_LOCAL_ROOT_SIG 
+	// Empty local root signature to be used in a ray gen and a miss shader.
+	{
+		auto localRootSignature = dxrPipeline.CreateSubobject<CD3D12_LOCAL_ROOT_SIGNATURE_SUBOBJECT>();
+		localRootSignature->SetRootSignature(m_raytracingLocalRootSignatureEmpty.Get());
+		// Shader association
+		auto rootSignatureAssociation = dxrPipeline.CreateSubobject<CD3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION_SUBOBJECT>();
+		rootSignatureAssociation->SetSubobjectToAssociate(*localRootSignature);
+		rootSignatureAssociation->AddExport(s_raygenShaderName);
+		rootSignatureAssociation->AddExport(s_missShaderName);
+		//rootSignatureAssociation->AddExport(s_hitGroupName);
+	}
+#endif
 
 	auto globalRootSignature = dxrPipeline.CreateSubobject<CD3D12_ROOT_SIGNATURE_SUBOBJECT>();
 	globalRootSignature->SetRootSignature(m_raytracingGlobalRootSignature.Get());
@@ -601,14 +626,8 @@ void DXDevice::_CreateShaderTables()
 	// Initialize shader records
 	//assert(LocalRootSignatureParams::ViewportConstantSlot == 0 && LocalRootSignatureParams::Count == 1);
 
-	m_rayGenCB.rayGenViewport = { -1.0f, -1.0f, 1.0f, 1.0f };
-	float border = 0.1f;
-	m_rayGenCB.rayGenStencil =
-	{
-		-1 + border, -1 + border * m_aspectRatio,
-		1.0f - border, 1 - border * m_aspectRatio
-	};
-
+	//m_rayGenCB.rayGenViewport = { -1.0f, -1.0f, 1.0f, 1.0f };
+	m_rayGenCB.missColor = { 1.0f, 0.0f, 0.0f, 1.0f };
 	struct RootArguments {
 		RayGenConstantBuffer cb;
 	} rootArguments;

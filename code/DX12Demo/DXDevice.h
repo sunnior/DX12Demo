@@ -128,8 +128,8 @@ private:
 
 	struct RayGenConstantBuffer
 	{
-		Viewport rayGenViewport;
-		Viewport rayGenStencil;
+		//Viewport rayGenViewport;
+		DirectX::XMFLOAT4 missColor;
 	};
 
 private:
@@ -146,6 +146,7 @@ private:
 
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> m_raytracingGlobalRootSignature;
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> m_raytracingLocalRootSignature;
+	Microsoft::WRL::ComPtr<ID3D12RootSignature> m_raytracingLocalRootSignatureEmpty;
 
 	Microsoft::WRL::ComPtr<ID3D12RaytracingFallbackStateObject> m_stateObject;
 
