@@ -31,12 +31,15 @@ DXDevice::DXDevice(WinParam winParam)
 	_CreateWindow(winParam);
 
 	_CreateRaytracingDevice();
+	
+	_CreateRootSignatures();
+	_CreateRaytracingPSO();
+
 	_CreateRaytracingDescriptorHeaps();
+
 
 	_CreateShaderResources();
 	_CreateAccelerationStructures();
-	_CreateRootSignatures();
-	_CreateRaytracingPSO();
 	_CreateShaderTables();
 
 	_InitMatrix();
@@ -515,7 +518,7 @@ void DXDevice::_CreateRootSignatures()
 	{
 		CD3DX12_ROOT_PARAMETER rootParameters[static_cast<int>(LocalRootSignatureParams::Count)];
 		UINT num32BitValues = (sizeof(m_rayGenCB) - 1) / sizeof(UINT32) + 1;
-		rootParameters[static_cast<int>(LocalRootSignatureParams::ViewportConstantSlot)].InitAsConstants(num32BitValues, 1);
+		rootParameters[static_cast<int>(LocalRootSignatureParams::ViewportConstantSlot)].InitAsConstants(num32BitValues, 0);
 		CD3DX12_ROOT_SIGNATURE_DESC localRootSignatureDesc(ARRAYSIZE(rootParameters), rootParameters);
 		localRootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE;
 		_SerializeAndCreateRaytracingRootSignature(m_raytracingDevice.Get(), localRootSignatureDesc, &m_raytracingLocalRootSignature);

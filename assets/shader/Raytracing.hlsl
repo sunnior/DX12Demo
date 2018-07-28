@@ -12,7 +12,7 @@ struct RayGenConstantBuffer
 	float4 missColor;
 };
 
-ConstantBuffer<RayGenConstantBuffer> g_raygenBuffer: register(b1);
+ConstantBuffer<RayGenConstantBuffer> g_raygenBuffer: register(b0);
 
 typedef BuiltInTriangleIntersectionAttributes MyAttributes;
 struct RayPayload
