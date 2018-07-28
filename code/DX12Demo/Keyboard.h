@@ -6,6 +6,11 @@ class Keyboard
 public:
 	enum class KeyCode {
 		W,
+		S,
+		Q,
+		E,
+		A,
+		D,
 		Count,
 	};
 public:
@@ -15,6 +20,8 @@ public:
 	void Update();
 	bool IsPressed(KeyCode keycode);
 
+private:
+	void _Checkkey(KeyCode keycode, int vk);
 private:
 	bool m_isPressed[static_cast<int>(KeyCode::Count)] = {};
 };

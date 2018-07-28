@@ -1,4 +1,5 @@
 #include "Engine.h"
+#include "Timer.h"
 
 Engine* Engine::s_instance = nullptr;
 
@@ -19,15 +20,23 @@ Engine::~Engine()
 
 void Engine::Run()
 {
+	float dt = 0.0f;
 	while (true)
 	{
+		DWORD beginTime = Timer::GetTimeMS();
+
 		if (_HandleMessage()) { break; }
 
 		m_keyboard.Update();
 
 		m_device.Begin();
-		m_device.Run();
+		m_device.Run(dt);
 		m_device.End();
+
+		DWORD endTime = Timer::GetTimeMS();
+		dt = static_cast<float>(endTime - beginTime) / 1000;
+
+
 	}
 }
 

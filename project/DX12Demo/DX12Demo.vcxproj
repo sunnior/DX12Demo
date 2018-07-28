@@ -88,6 +88,7 @@
     <ClCompile Include="..\..\code\DX12Demo\Engine.cpp" />
     <ClCompile Include="..\..\code\DX12Demo\Keyboard.cpp" />
     <ClCompile Include="..\..\code\DX12Demo\main.cpp" />
+    <ClCompile Include="..\..\code\DX12Demo\Timer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\assets\shader\RaytracingHlslCompat.h" />
@@ -97,6 +98,7 @@
     <ClInclude Include="..\..\code\DX12Demo\DXDevice_Helper.h" />
     <ClInclude Include="..\..\code\DX12Demo\Engine.h" />
     <ClInclude Include="..\..\code\DX12Demo\Keyboard.h" />
+    <ClInclude Include="..\..\code\DX12Demo\Timer.h" />
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="..\..\assets\shader\Raytracing.hlsl">

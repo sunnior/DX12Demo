@@ -43,7 +43,7 @@ public:
 	~DXDevice();
 
 	void Begin();
-	void Run();
+	void Run(float dt);
 	void End();
 
 private:

@@ -9,14 +9,17 @@ public:
 	Camera(float aspectRatio);
 	~Camera();
 
-	DirectX::XMFLOAT4 GetPosition() { return m_eye; }
+	DirectX::XMFLOAT4 GetPosition() { return m_pos; }
 	DirectX::XMFLOAT4X4 GetProjectionToWorld() { return m_projectionToWorld; }
 
-	void Update();
+	void Update(float dt);
 
 private:
-	DirectX::XMFLOAT4 m_eye;
-	DirectX::XMFLOAT4 m_up;
+	void _UpdateMatrix();
+private:
+	DirectX::XMFLOAT4 m_pos;
+	const DirectX::XMFLOAT4 m_upward;
+	DirectX::XMFLOAT4 m_forward;
 
 	DirectX::XMFLOAT4X4 m_projectionToWorld;
 	DirectX::XMFLOAT4X4 m_projectMatrix;

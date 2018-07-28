@@ -196,9 +196,33 @@ void DXDevice::Begin()
 	m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
 }
 
-void DXDevice::Run()
+void DXDevice::Run(float dt)
 {
-	m_camera.Update();
+	m_camera.Update(dt);
+
+	uint8_t* mappedData;
+	// We don't unmap this until the app closes. Keeping buffer mapped for the lifetime of the resource is okay.
+	CD3DX12_RANGE readRange(0, 0);        // We do not intend to read from this resource on the CPU.
+	ABORT_IF_FAILED_HR(m_rayGenShaderTable->Map(0, &readRange, reinterpret_cast<void**>(&mappedData)));
+
+	// Get shader identifiers
+
+	void* rayGenShaderIdentifier = m_stateObject->GetShaderIdentifier(s_raygenShaderName);
+	UINT shaderIdentifierSize = m_raytracingDevice->GetShaderIdentifierSize();
+	struct RootArguments {
+		SceneConstantBuffer cb;
+	} rootArguments;
+	rootArguments.cb.cameraPosition = m_camera.GetPosition();
+	rootArguments.cb.projectionToWorld = m_camera.GetProjectionToWorld();
+	UINT rootArgumentsSize = sizeof(rootArguments);
+
+	// Shader record = {{ Shader ID }, { RootArguments }}
+	UINT shaderRecordSize = shaderIdentifierSize + rootArgumentsSize;
+
+	memcpy(mappedData, rayGenShaderIdentifier, shaderIdentifierSize);
+	memcpy(mappedData + shaderIdentifierSize, &rootArguments, rootArgumentsSize);
+
+
 /*
 	UINT rtvDescSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
@@ -645,10 +669,10 @@ void DXDevice::_CreateShaderTables()
 	ShaderRecord rayGenShaderRecord(rayGenShaderIdentifier, shaderIdentifierSize, &rootArguments, rootArgumentsSize);
 	rayGenShaderRecord.AllocateAsUploadBuffer(m_device.Get(), &m_rayGenShaderTable, L"RayGenShaderTable");
 
-	ShaderRecord missShaderRecord(missShaderIdentifier, shaderIdentifierSize, &rootArguments, rootArgumentsSize);
+	ShaderRecord missShaderRecord(missShaderIdentifier, shaderIdentifierSize, nullptr, 0);
 	missShaderRecord.AllocateAsUploadBuffer(m_device.Get(), &m_missShaderTable, L"MissShaderTable");
 
-	ShaderRecord hitGroupShaderRecord(hitGroupShaderIdentifier, shaderIdentifierSize, &rootArguments, rootArgumentsSize);
+	ShaderRecord hitGroupShaderRecord(hitGroupShaderIdentifier, shaderIdentifierSize, nullptr, 0);
 	hitGroupShaderRecord.AllocateAsUploadBuffer(m_device.Get(), &m_hitGroupShaderTable, L"HitGroupShaderTable");
 }
 
