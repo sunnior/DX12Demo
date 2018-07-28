@@ -9,7 +9,9 @@
 #include "d3d12_1.h"
 #include "D3D12RaytracingFallback.h"
 #include <DirectXMath.h>
+#define LANGUAGE_CPP
 #include "RaytracingHlslCompat.h"
+#include "Camera.h"
 
 class DXDevice
 {
@@ -97,7 +99,6 @@ private:
 	void _CreateShaderResources();
 	void _CreateShaderTables();
 
-	void _InitMatrix();
 	void _UpdateMatrix();
 private:
 	enum class GlobalRootSignatureParams {
@@ -157,8 +158,6 @@ private:
 
 	WRAPPED_GPU_POINTER m_topLevelAccelerationStructurePointer;
 
-	RayGenConstantBuffer m_rayGenCB;
-
 	Microsoft::WRL::ComPtr<ID3D12Resource> m_missShaderTable;
 	Microsoft::WRL::ComPtr<ID3D12Resource> m_hitGroupShaderTable;
 	Microsoft::WRL::ComPtr<ID3D12Resource> m_rayGenShaderTable;
@@ -166,10 +165,8 @@ private:
 private:
 	typedef UINT16 Index_t;
 	typedef DirectX::XMFLOAT3 Vertex_t[2];
-	DirectX::XMFLOAT4 m_eye;
-	DirectX::XMFLOAT4 m_at;
-	DirectX::XMFLOAT4 m_up;
 
+	Camera m_camera;
 	SceneConstantBuffer m_sceneCB;
 
 };

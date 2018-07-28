@@ -1,4 +1,6 @@
-﻿RaytracingAccelerationStructure Scene : register(t0, space0);
+﻿#include "RaytracingHlslCompat.h"
+
+RaytracingAccelerationStructure Scene : register(t0, space0);
 RWTexture2D<float4> RenderTarget : register(u0);
 
 struct Viewport
@@ -7,12 +9,7 @@ struct Viewport
     float2 bottomRight;
 };
 
-struct RayGenConstantBuffer 
-{
-	float4 missColor;
-};
-
-ConstantBuffer<RayGenConstantBuffer> g_raygenBuffer: register(b0);
+ConstantBuffer<SceneConstantBuffer> g_sceneCB: register(b0);
 
 typedef BuiltInTriangleIntersectionAttributes MyAttributes;
 struct RayPayload
@@ -20,39 +17,42 @@ struct RayPayload
 	float4 color;
 };
 
-bool IsInside(float p, float2 range)
+inline void GenerateCameraRay(uint2 index, out float3 origin, out float3 direction)
 {
-    return p.x > range.x && p.x < range.y;
-}
+	float2 xy = index + 0.5f; // center in the middle of the pixel.
+	float2 screenPos = xy / DispatchRaysDimensions() * 2.0 - 1.0;
 
-bool IsInsideViewport(float2 p, Viewport viewport)
-{
-    return (p.x >= viewport.topLeft.x && p.x <= viewport.bottomRight.x)
-        && (p.y >= viewport.topLeft.y && p.y <= viewport.bottomRight.y);
+	// Invert Y for DirectX-style coordinates.
+	screenPos.y = -screenPos.y;
+
+	// Unproject the pixel coordinate into a ray.
+	float4 world = mul(float4(screenPos, 0, 1), g_sceneCB.projectionToWorld);
+
+	world.xyz /= world.w;
+	origin = g_sceneCB.cameraPosition.xyz;
+	direction = normalize(world.xyz - origin);
 }
 
 [shader("raygeneration")]
 void MyRaygenShader()
 {
-	float2 lerpValues = (float2)DispatchRaysIndex() / DispatchRaysDimensions();
+	float3 rayDir;
+	float3 origin;
 
-	// Orthographic projection since we're raytracing in screen space
-	float3 rayDir = float3(0.0, 0.0, 1);
-	float3 origin = float3(
-		lerp(-1.0f, 1.0f, lerpValues.x),
-		lerp(-1.0f, 1.0f, lerpValues.y),
-		0.0f);
-
+	GenerateCameraRay(DispatchRaysIndex(), origin, rayDir);
 
 	// Cast rays
-	RayDesc myRay = { origin,
-		0.001f,
-		rayDir,
-		10000.0f };
+	RayDesc ray;
+	ray.Origin = origin;
+	ray.Direction = rayDir;
+	// Set TMin to a non-zero small value to avoid aliasing issues due to floating - point errors.
+	// TMin should be kept small to prevent missing geometry at close contact areas.
+	ray.TMin = 0.001;
+	ray.TMax = 10000.0;
+
 	RayPayload payload = { float4(0, 0, 0, 1) };
-	TraceRay(Scene, RAY_FLAG_CULL_BACK_FACING_TRIANGLES, ~0, 0, 1, 0, myRay, payload);
+	TraceRay(Scene, RAY_FLAG_CULL_BACK_FACING_TRIANGLES, ~0, 0, 1, 0, ray, payload);
 	RenderTarget[DispatchRaysIndex()] = payload.color;
-	//RenderTarget[DispatchRaysIndex()] = g_raygenBuffer.missColor;
 
 }
 
@@ -61,7 +61,6 @@ void MyClosestHitShader(inout RayPayload payload : SV_RayPayload, in MyAttribute
 {
     float3 barycentrics = float3(1.0 - attr.barycentrics.x - attr.barycentrics.y, attr.barycentrics.x, attr.barycentrics.y);
     payload.color = float4(barycentrics, 1);
-	payload.color = g_raygenBuffer.missColor;
 }
 
 [shader("miss")]

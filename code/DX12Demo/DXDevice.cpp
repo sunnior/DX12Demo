@@ -22,7 +22,10 @@ DXDevice::DXDevice(WinParam winParam)
 	, m_backbufferFormat{ DXGI_FORMAT_R8G8B8A8_UNORM }
 	, m_winHeight{ static_cast<FLOAT>(winParam.height) }
 	, m_winWidth{ static_cast<FLOAT>(winParam.width) }
+	, m_camera(static_cast<FLOAT>(winParam.width)/static_cast<FLOAT>(winParam.height))
 {
+	_UpdateMatrix();
+
 	_EnableRaytracing();
 
 	_CreateDXGIAdapter();
@@ -41,8 +44,6 @@ DXDevice::DXDevice(WinParam winParam)
 	_CreateShaderResources();
 	_CreateAccelerationStructures();
 	_CreateShaderTables();
-
-	_InitMatrix();
 }
 
 DXDevice::~DXDevice()
@@ -197,6 +198,7 @@ void DXDevice::Begin()
 
 void DXDevice::Run()
 {
+	m_camera.Update();
 /*
 	UINT rtvDescSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
@@ -517,7 +519,7 @@ void DXDevice::_CreateRootSignatures()
 	// Local Root Signature
 	{
 		CD3DX12_ROOT_PARAMETER rootParameters[static_cast<int>(LocalRootSignatureParams::Count)];
-		UINT num32BitValues = (sizeof(m_rayGenCB) - 1) / sizeof(UINT32) + 1;
+		UINT num32BitValues = (sizeof(m_sceneCB) - 1) / sizeof(UINT32) + 1;
 		rootParameters[static_cast<int>(LocalRootSignatureParams::ViewportConstantSlot)].InitAsConstants(num32BitValues, 0);
 		CD3DX12_ROOT_SIGNATURE_DESC localRootSignatureDesc(ARRAYSIZE(rootParameters), rootParameters);
 		localRootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE;
@@ -569,9 +571,9 @@ void DXDevice::_CreateRaytracingPSO()
 
 	auto rootSignatureAssociation = dxrPipeline.CreateSubobject<CD3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION_SUBOBJECT>();
 	rootSignatureAssociation->SetSubobjectToAssociate(*localRootSignature);
-	//rootSignatureAssociation->AddExport(s_raygenShaderName);
+	rootSignatureAssociation->AddExport(s_raygenShaderName);
 	//rootSignatureAssociation->AddExport(s_missShaderName);
-	rootSignatureAssociation->AddExport(s_hitGroupName);
+	//rootSignatureAssociation->AddExport(s_hitGroupName);
 
 #ifdef USE_NON_NULL_LOCAL_ROOT_SIG 
 	// Empty local root signature to be used in a ray gen and a miss shader.
@@ -581,9 +583,9 @@ void DXDevice::_CreateRaytracingPSO()
 		// Shader association
 		auto rootSignatureAssociation = dxrPipeline.CreateSubobject<CD3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION_SUBOBJECT>();
 		rootSignatureAssociation->SetSubobjectToAssociate(*localRootSignature);
-		rootSignatureAssociation->AddExport(s_raygenShaderName);
+		//rootSignatureAssociation->AddExport(s_raygenShaderName);
 		rootSignatureAssociation->AddExport(s_missShaderName);
-		//rootSignatureAssociation->AddExport(s_hitGroupName);
+		rootSignatureAssociation->AddExport(s_hitGroupName);
 	}
 #endif
 
@@ -630,11 +632,11 @@ void DXDevice::_CreateShaderTables()
 	//assert(LocalRootSignatureParams::ViewportConstantSlot == 0 && LocalRootSignatureParams::Count == 1);
 
 	//m_rayGenCB.rayGenViewport = { -1.0f, -1.0f, 1.0f, 1.0f };
-	m_rayGenCB.missColor = { 1.0f, 0.0f, 0.0f, 1.0f };
+	//m_rayGenCB.missColor = { 1.0f, 0.0f, 0.0f, 1.0f };
 	struct RootArguments {
-		RayGenConstantBuffer cb;
+		SceneConstantBuffer cb;
 	} rootArguments;
-	rootArguments.cb = m_rayGenCB;
+	rootArguments.cb = m_sceneCB;
 	UINT rootArgumentsSize = sizeof(rootArguments);
 
 	// Shader record = {{ Shader ID }, { RootArguments }}
@@ -650,28 +652,10 @@ void DXDevice::_CreateShaderTables()
 	hitGroupShaderRecord.AllocateAsUploadBuffer(m_device.Get(), &m_hitGroupShaderTable, L"HitGroupShaderTable");
 }
 
-void DXDevice::_InitMatrix()
-{
-	m_eye = { 0.0f, 0.0f, -5.0f, 1.0f };
-	m_at = { 0.0f, 0.0f, 0.0f, 1.0f };
-
-
-	XMVECTOR eye = XMLoadFloat4(&m_eye);
-	XMVECTOR at = XMLoadFloat4(&m_at);
-
-	XMVECTOR right = { 1.0f, 0.0f, 0.0f, 0.0f };
-
-	XMVECTOR direction = XMVector4Normalize(at - eye);
-	XMStoreFloat4(&m_up, XMVector3Normalize(XMVector3Cross(direction, right)));
-}
-
 void DXDevice::_UpdateMatrix()
 {
 	const float fovAngleY = 45.0f;
 
-	m_sceneCB.cameraPosition = m_eye;
-	XMMATRIX view = XMMatrixLookAtLH(XMLoadFloat4(&m_eye), XMLoadFloat4(&m_at), XMLoadFloat4(&m_up));
-	XMMATRIX proj = XMMatrixPerspectiveFovLH(XMConvertToRadians(fovAngleY), m_aspectRatio, 1.0f, 125.0f);
-	XMMATRIX viewProj = view * proj;
-	XMStoreFloat4x4(&m_sceneCB.projectionToWorld, XMMatrixInverse(nullptr, viewProj));
+	m_sceneCB.cameraPosition = m_camera.GetPosition();
+	m_sceneCB.projectionToWorld = m_camera.GetProjectionToWorld();
 }

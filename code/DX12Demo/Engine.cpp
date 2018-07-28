@@ -1,14 +1,20 @@
 #include "Engine.h"
 
+Engine* Engine::s_instance = nullptr;
+
 Engine::Engine(DXDevice::WinParam winParam)
 	: m_device(winParam)
 {
-
+	if (!s_instance)
+	{
+		s_instance = this;
+	}
 }
 
 
 Engine::~Engine()
 {
+	s_instance = nullptr;
 }
 
 void Engine::Run()
@@ -16,6 +22,8 @@ void Engine::Run()
 	while (true)
 	{
 		if (_HandleMessage()) { break; }
+
+		m_keyboard.Update();
 
 		m_device.Begin();
 		m_device.Run();
