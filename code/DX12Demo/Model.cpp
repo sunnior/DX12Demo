@@ -8,6 +8,7 @@ Model::Model(const wchar_t* name, const std::vector<Vertex_t>& vertices, const s
 	DXDevice& device = Engine::GetInstance()->GetDevice();
 	m_vertexBuffer = device.CreateUploadBuffer(m_vertices.data(), sizeof(Vertex_t)* m_vertices.size(), name);
 	m_indexBuffer = device.CreateUploadBuffer(m_indices.data(), sizeof(Index_t)* m_indices.size(), name);
+
 }
 
 Model::~Model()
@@ -27,6 +28,7 @@ void Model::Draw()
 			m_instanceDesc, m_transform,
 			&m_bottomLevelAccelerationStructure);
 	}
+
 	device.AddInstance(m_instanceDesc);
 }
 

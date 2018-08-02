@@ -1,6 +1,7 @@
 #include "Engine.h"
 #include "Timer.h"
 #include "Model.h"
+#include "MeshGenerator.h"
 
 using namespace DirectX;
 Engine* Engine::s_instance = nullptr;
@@ -23,71 +24,25 @@ Engine::~Engine()
 
 void Engine::Init()
 {
-	// Cube indices.
-	std::vector<Model::Index_t> indices =
-	{
-		3,1,0,
-		2,1,3,
+	
+	m_box = MeshGenerator::CreateBox(L"box1");
+	m_box2 = MeshGenerator::CreateBox(L"box2");
+	m_sphere = MeshGenerator::CreateSphere(L"sphere", 0.3f, 10, 10);
+	m_sphere->SetTransform(DirectX::XMFLOAT4X3{
+		1, 0, 0, 2,
+		0, 1, 0, 0,
+		0, 0, 1, 0 }
+	);
 
-		6,4,5,
-		7,4,6,
-
-		11,9,8,
-		10,9,11,
-
-		14,12,13,
-		15,12,14,
-
-		19,17,16,
-		18,17,19,
-
-		22,20,21,
-		23,20,22
-	};
-
-	// Cube vertices positions and corresponding triangle normals.
-	std::vector<Model::Vertex_t> vertices =
-	{
-		{ XMFLOAT3(-1.0f, 1.0f, -1.0f), XMFLOAT3(0.0f, 1.0f, 0.0f) },
-	{ XMFLOAT3(1.0f, 1.0f, -1.0f), XMFLOAT3(0.0f, 1.0f, 0.0f) },
-	{ XMFLOAT3(1.0f, 1.0f, 1.0f), XMFLOAT3(0.0f, 1.0f, 0.0f) },
-	{ XMFLOAT3(-1.0f, 1.0f, 1.0f), XMFLOAT3(0.0f, 1.0f, 0.0f) },
-
-	{ XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT3(0.0f, -1.0f, 0.0f) },
-	{ XMFLOAT3(1.0f, -1.0f, -1.0f), XMFLOAT3(0.0f, -1.0f, 0.0f) },
-	{ XMFLOAT3(1.0f, -1.0f, 1.0f), XMFLOAT3(0.0f, -1.0f, 0.0f) },
-	{ XMFLOAT3(-1.0f, -1.0f, 1.0f), XMFLOAT3(0.0f, -1.0f, 0.0f) },
-
-	{ XMFLOAT3(-1.0f, -1.0f, 1.0f), XMFLOAT3(-1.0f, 0.0f, 0.0f) },
-	{ XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT3(-1.0f, 0.0f, 0.0f) },
-	{ XMFLOAT3(-1.0f, 1.0f, -1.0f), XMFLOAT3(-1.0f, 0.0f, 0.0f) },
-	{ XMFLOAT3(-1.0f, 1.0f, 1.0f), XMFLOAT3(-1.0f, 0.0f, 0.0f) },
-
-	{ XMFLOAT3(1.0f, -1.0f, 1.0f), XMFLOAT3(1.0f, 0.0f, 0.0f) },
-	{ XMFLOAT3(1.0f, -1.0f, -1.0f), XMFLOAT3(1.0f, 0.0f, 0.0f) },
-	{ XMFLOAT3(1.0f, 1.0f, -1.0f), XMFLOAT3(1.0f, 0.0f, 0.0f) },
-	{ XMFLOAT3(1.0f, 1.0f, 1.0f), XMFLOAT3(1.0f, 0.0f, 0.0f) },
-
-	{ XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT3(0.0f, 0.0f, -1.0f) },
-	{ XMFLOAT3(1.0f, -1.0f, -1.0f), XMFLOAT3(0.0f, 0.0f, -1.0f) },
-	{ XMFLOAT3(1.0f, 1.0f, -1.0f), XMFLOAT3(0.0f, 0.0f, -1.0f) },
-	{ XMFLOAT3(-1.0f, 1.0f, -1.0f), XMFLOAT3(0.0f, 0.0f, -1.0f) },
-
-	{ XMFLOAT3(-1.0f, -1.0f, 1.0f), XMFLOAT3(0.0f, 0.0f, 1.0f) },
-	{ XMFLOAT3(1.0f, -1.0f, 1.0f), XMFLOAT3(0.0f, 0.0f, 1.0f) },
-	{ XMFLOAT3(1.0f, 1.0f, 1.0f), XMFLOAT3(0.0f, 0.0f, 1.0f) },
-	{ XMFLOAT3(-1.0f, 1.0f, 1.0f), XMFLOAT3(0.0f, 0.0f, 1.0f) },
-	};
-
-	for (int i = 0; i < 24; ++i)
-	{
-		vertices[i].pos.x *= 0.3f;
-		vertices[i].pos.y *= 0.3f;
-		vertices[i].pos.z *= 0.3f;
-	}
-
-	m_box = std::make_unique<Model>(L"box1", vertices, indices);
-	m_box2 = std::make_unique<Model>(L"box1", vertices, indices);
+	m_box->SetTransform(DirectX::XMFLOAT4X3{
+		1, 0, 0, 0,
+		0, 1, 0, 0,
+		0, 0, 1, 2 }
+	);
+	m_box2->SetTransform(DirectX::XMFLOAT4X3{
+		1, 0, 0, 0,
+		0, 1, 0, 0,
+		0, 0, 1, -2 });
 }
 
 void Engine::Run()
@@ -101,18 +56,10 @@ void Engine::Run()
 
 		m_keyboard.Update();
 		m_camera.Update(dt);
-		
-		m_box->SetTransform(DirectX::XMFLOAT4X3{ 1, 0, 0, 0,
-			0, 1, 0, 0,
-			0, 0, 1, 2 }
-		);
-		m_box2->SetTransform(DirectX::XMFLOAT4X3{ 
-			1, 0, 0, 0,
-			0, 1, 0, 0,
-			0, 0, 1, -2 });
 
 		m_box->Draw();
-		m_box2->Draw();
+		//m_box2->Draw();
+		m_sphere->Draw();
 
 		m_device.SetCamera(m_camera.GetProjectionToWorld(), m_camera.GetPosition());
 

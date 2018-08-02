@@ -28,6 +28,7 @@ private:
 	Camera m_camera;
 	std::unique_ptr<class Model> m_box;
 	std::unique_ptr<class Model> m_box2;
+	std::unique_ptr<class Model> m_sphere;
 
 	static Engine* s_instance;
 };

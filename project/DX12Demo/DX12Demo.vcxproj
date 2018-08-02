@@ -87,6 +87,7 @@
     <ClCompile Include="..\..\code\DX12Demo\Engine.cpp" />
     <ClCompile Include="..\..\code\DX12Demo\Keyboard.cpp" />
     <ClCompile Include="..\..\code\DX12Demo\main.cpp" />
+    <ClCompile Include="..\..\code\DX12Demo\MeshGenerator.cpp" />
     <ClCompile Include="..\..\code\DX12Demo\Model.cpp" />
     <ClCompile Include="..\..\code\DX12Demo\Timer.cpp" />
   </ItemGroup>
@@ -98,6 +99,7 @@
     <ClInclude Include="..\..\code\DX12Demo\DXDevice_Helper.h" />
     <ClInclude Include="..\..\code\DX12Demo\Engine.h" />
     <ClInclude Include="..\..\code\DX12Demo\Keyboard.h" />
+    <ClInclude Include="..\..\code\DX12Demo\MeshGenerator.h" />
     <ClInclude Include="..\..\code\DX12Demo\Model.h" />
     <ClInclude Include="..\..\code\DX12Demo\Timer.h" />
   </ItemGroup>
