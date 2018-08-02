@@ -42,7 +42,6 @@ DXDevice::DXDevice(WinParam winParam)
 
 
 	_CreateShaderResources();
-	_CreateAccelerationStructures();
 	_CreateShaderTables();
 }
 
@@ -186,6 +185,11 @@ void DXDevice::_CreateWindow(WinParam winParam)
 
 void DXDevice::Begin()
 {
+	if (m_topLevelAccelerationStructure == nullptr && m_instanceDesc != nullptr)
+	{
+		_CreateTopLevelAS();
+	}
+
 	// Update the back buffer index.
 	m_frameIndex = m_swapChain->GetCurrentBackBufferIndex();
 	m_fences[m_frameIndex].Wait(m_fenceEvent);
@@ -331,96 +335,22 @@ void DXDevice::_CreateRaytracingDescriptorHeaps()
 	m_descriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 }
 
-void DXDevice::_CreateAccelerationStructures()
-{
-	_CreateGeometry();
-
-	ComPtr<ID3D12Resource> instanceDescs;
-	_CreateBottomLevelAS(&instanceDescs);
-	_CreateTopLevelAS(instanceDescs.Get());
-}
-
-void DXDevice::_CreateGeometry()
-{
-	// Cube indices.
-	Index_t indices[] =
-	{
-		3,1,0,
-		2,1,3,
-
-		6,4,5,
-		7,4,6,
-
-		11,9,8,
-		10,9,11,
-
-		14,12,13,
-		15,12,14,
-
-		19,17,16,
-		18,17,19,
-
-		22,20,21,
-		23,20,22
-	};
-
-	// Cube vertices positions and corresponding triangle normals.
-	Vertex_t vertices[] =
-	{
-		{ XMFLOAT3(-1.0f, 1.0f, -1.0f), XMFLOAT3(0.0f, 1.0f, 0.0f) },
-	{ XMFLOAT3(1.0f, 1.0f, -1.0f), XMFLOAT3(0.0f, 1.0f, 0.0f) },
-	{ XMFLOAT3(1.0f, 1.0f, 1.0f), XMFLOAT3(0.0f, 1.0f, 0.0f) },
-	{ XMFLOAT3(-1.0f, 1.0f, 1.0f), XMFLOAT3(0.0f, 1.0f, 0.0f) },
-
-	{ XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT3(0.0f, -1.0f, 0.0f) },
-	{ XMFLOAT3(1.0f, -1.0f, -1.0f), XMFLOAT3(0.0f, -1.0f, 0.0f) },
-	{ XMFLOAT3(1.0f, -1.0f, 1.0f), XMFLOAT3(0.0f, -1.0f, 0.0f) },
-	{ XMFLOAT3(-1.0f, -1.0f, 1.0f), XMFLOAT3(0.0f, -1.0f, 0.0f) },
-
-	{ XMFLOAT3(-1.0f, -1.0f, 1.0f), XMFLOAT3(-1.0f, 0.0f, 0.0f) },
-	{ XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT3(-1.0f, 0.0f, 0.0f) },
-	{ XMFLOAT3(-1.0f, 1.0f, -1.0f), XMFLOAT3(-1.0f, 0.0f, 0.0f) },
-	{ XMFLOAT3(-1.0f, 1.0f, 1.0f), XMFLOAT3(-1.0f, 0.0f, 0.0f) },
-
-	{ XMFLOAT3(1.0f, -1.0f, 1.0f), XMFLOAT3(1.0f, 0.0f, 0.0f) },
-	{ XMFLOAT3(1.0f, -1.0f, -1.0f), XMFLOAT3(1.0f, 0.0f, 0.0f) },
-	{ XMFLOAT3(1.0f, 1.0f, -1.0f), XMFLOAT3(1.0f, 0.0f, 0.0f) },
-	{ XMFLOAT3(1.0f, 1.0f, 1.0f), XMFLOAT3(1.0f, 0.0f, 0.0f) },
-
-	{ XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT3(0.0f, 0.0f, -1.0f) },
-	{ XMFLOAT3(1.0f, -1.0f, -1.0f), XMFLOAT3(0.0f, 0.0f, -1.0f) },
-	{ XMFLOAT3(1.0f, 1.0f, -1.0f), XMFLOAT3(0.0f, 0.0f, -1.0f) },
-	{ XMFLOAT3(-1.0f, 1.0f, -1.0f), XMFLOAT3(0.0f, 0.0f, -1.0f) },
-
-	{ XMFLOAT3(-1.0f, -1.0f, 1.0f), XMFLOAT3(0.0f, 0.0f, 1.0f) },
-	{ XMFLOAT3(1.0f, -1.0f, 1.0f), XMFLOAT3(0.0f, 0.0f, 1.0f) },
-	{ XMFLOAT3(1.0f, 1.0f, 1.0f), XMFLOAT3(0.0f, 0.0f, 1.0f) },
-	{ XMFLOAT3(-1.0f, 1.0f, 1.0f), XMFLOAT3(0.0f, 0.0f, 1.0f) },
-	};
-
-	for (int i = 0; i < 24; ++i)
-	{
-		vertices[i][0].x *= 0.3f;
-		vertices[i][0].y *= 0.3f;
-		vertices[i][0].z *= 0.3f;
-	}
-	_CreateUploadBuffer(m_device.Get(), &m_vertexBuffer, vertices, sizeof(vertices), L"VertexBuffer");
-	_CreateUploadBuffer(m_device.Get(), &m_indexBuffer, indices, sizeof(indices), L"IndexBuffer");
-
-}
-
-void DXDevice::_CreateBottomLevelAS(ID3D12Resource** ppInstanceDescs)
+void DXDevice::CreateBottomLevelAS(
+	D3D12_GPU_VIRTUAL_ADDRESS vertexAddress, UINT vertexCount, UINT64 vertexStride, 
+	D3D12_GPU_VIRTUAL_ADDRESS indexAddress, UINT indexCount,
+	ID3D12Resource** ppInstanceDescs,
+	ID3D12Resource** bottomLevelAccelerationStructure)
 {
 	D3D12_RAYTRACING_GEOMETRY_DESC geometryDesc = {};
 	geometryDesc.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
-	geometryDesc.Triangles.IndexBuffer = m_indexBuffer->GetGPUVirtualAddress();
-	geometryDesc.Triangles.IndexCount = static_cast<UINT>(m_indexBuffer->GetDesc().Width) / sizeof(Index_t);
+	geometryDesc.Triangles.IndexBuffer = indexAddress;
+	geometryDesc.Triangles.IndexCount = indexCount;
 	geometryDesc.Triangles.IndexFormat = DXGI_FORMAT_R16_UINT;
 	geometryDesc.Triangles.Transform = 0;
 	geometryDesc.Triangles.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
-	geometryDesc.Triangles.VertexCount = static_cast<UINT>(m_vertexBuffer->GetDesc().Width) / sizeof(Vertex_t);
-	geometryDesc.Triangles.VertexBuffer.StartAddress = m_vertexBuffer->GetGPUVirtualAddress();
-	geometryDesc.Triangles.VertexBuffer.StrideInBytes = sizeof(Vertex_t);
+	geometryDesc.Triangles.VertexCount = vertexCount;
+	geometryDesc.Triangles.VertexBuffer.StartAddress = vertexAddress; 
+	geometryDesc.Triangles.VertexBuffer.StrideInBytes = vertexStride;
 	//geometryDesc.Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE;
 
 	// Get required sizes for an acceleration structure.
@@ -436,7 +366,7 @@ void DXDevice::_CreateBottomLevelAS(ID3D12Resource** ppInstanceDescs)
 	ABORT_IF_FAILED(bottomLevelPrebuildInfo.ResultDataMaxSizeInBytes > 0);
 
 	D3D12_RESOURCE_STATES initialResourceState = m_raytracingDevice->GetAccelerationStructureResourceState();
-	_CreateUAVBuffer(m_device.Get(), &m_bottomLevelAccelerationStructure, bottomLevelPrebuildInfo.ResultDataMaxSizeInBytes, initialResourceState, L"BottomLevelAccelerationStructure");
+	_CreateUAVBuffer(m_device.Get(), bottomLevelAccelerationStructure, bottomLevelPrebuildInfo.ResultDataMaxSizeInBytes, initialResourceState, L"BottomLevelAccelerationStructure");
 
 	ComPtr<ID3D12Resource> scratchResource;
 	_CreateUAVBuffer(m_device.Get(), &scratchResource, bottomLevelPrebuildInfo.ScratchDataSizeInBytes, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, L"ScratchResource");
@@ -449,8 +379,8 @@ void DXDevice::_CreateBottomLevelAS(ID3D12Resource** ppInstanceDescs)
 	memcpy(instanceDesc.Transform, trans, sizeof(trans));
 	instanceDesc.InstanceMask = 1;
 	UINT numBufferElements = static_cast<UINT>(bottomLevelPrebuildInfo.ResultDataMaxSizeInBytes) / sizeof(UINT32);
-	instanceDesc.AccelerationStructure = _CreateWrappedPointer(m_device.Get(), m_raytracingDevice.Get(), m_raytracingDescriptorHeap.Get(), static_cast<UINT>(RaytracingDescriptorHeapSlot::BottomLevelWrapperPointer), m_descriptorSize, m_bottomLevelAccelerationStructure.Get(), numBufferElements);
-	_CreateUploadBuffer(m_device.Get(), ppInstanceDescs, &instanceDesc, sizeof(instanceDesc), L"InstanceDescs");
+	instanceDesc.AccelerationStructure = _CreateWrappedPointer(m_device.Get(), m_raytracingDevice.Get(), m_raytracingDescriptorHeap.Get(), static_cast<UINT>(RaytracingDescriptorHeapSlot::BottomLevelWrapperPointer), m_descriptorSize, *bottomLevelAccelerationStructure, numBufferElements);
+	*ppInstanceDescs = CreateUploadBuffer(&instanceDesc, sizeof(instanceDesc), L"InstanceDescs");
 
 	// Bottom Level Acceleration Structure desc
 	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC bottomLevelBuildDesc{};
@@ -459,7 +389,7 @@ void DXDevice::_CreateBottomLevelAS(ID3D12Resource** ppInstanceDescs)
 		bottomLevelBuildDesc.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE;
 		bottomLevelBuildDesc.ScratchAccelerationStructureData = { scratchResource->GetGPUVirtualAddress(), scratchResource->GetDesc().Width };
 		bottomLevelBuildDesc.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
-		bottomLevelBuildDesc.DestAccelerationStructureData = { m_bottomLevelAccelerationStructure->GetGPUVirtualAddress(), bottomLevelPrebuildInfo.ResultDataMaxSizeInBytes };
+		bottomLevelBuildDesc.DestAccelerationStructureData = { (*bottomLevelAccelerationStructure)->GetGPUVirtualAddress(), bottomLevelPrebuildInfo.ResultDataMaxSizeInBytes };
 		bottomLevelBuildDesc.NumDescs = 1;
 		bottomLevelBuildDesc.pGeometryDescs = &geometryDesc;
 	}
@@ -467,7 +397,7 @@ void DXDevice::_CreateBottomLevelAS(ID3D12Resource** ppInstanceDescs)
 	ABORT_IF_FAILED_HR(m_commandAllocator[0]->Reset());
 	ABORT_IF_FAILED_HR(m_commandList->Reset(m_commandAllocator[0].Get(), m_dummyPipelineState.Get()));
 	m_raytracingCommandList->BuildRaytracingAccelerationStructure(&bottomLevelBuildDesc);
-	m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::UAV(m_bottomLevelAccelerationStructure.Get()));
+	m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::UAV(*bottomLevelAccelerationStructure));
 	m_commandList->Close();
 	ID3D12CommandList *commandLists[] = { m_commandList.Get() };
 	m_commandQueue->ExecuteCommandLists(ARRAYSIZE(commandLists), commandLists);
@@ -476,7 +406,7 @@ void DXDevice::_CreateBottomLevelAS(ID3D12Resource** ppInstanceDescs)
 	m_fences[0].Wait(m_fenceEvent);
 }
 
-void DXDevice::_CreateTopLevelAS(ID3D12Resource* pInstanceDescs)
+void DXDevice::_CreateTopLevelAS()
 {
 	// Get required sizes for an acceleration structure.
 	D3D12_GET_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO_DESC prebuildInfoDesc{};
@@ -510,7 +440,7 @@ void DXDevice::_CreateTopLevelAS(ID3D12Resource* pInstanceDescs)
 		topLevelBuildDesc.DestAccelerationStructureData = { m_topLevelAccelerationStructure->GetGPUVirtualAddress(), topLevelPrebuildInfo.ResultDataMaxSizeInBytes };
 		topLevelBuildDesc.NumDescs = 1;
 		topLevelBuildDesc.pGeometryDescs = nullptr;
-		topLevelBuildDesc.InstanceDescs = pInstanceDescs->GetGPUVirtualAddress();
+		topLevelBuildDesc.InstanceDescs = m_instanceDesc->GetGPUVirtualAddress();
 		topLevelBuildDesc.ScratchAccelerationStructureData = { scratchResource->GetGPUVirtualAddress(), scratchResource->GetDesc().Width };
 	}
 
@@ -682,4 +612,18 @@ void DXDevice::_UpdateMatrix()
 
 	m_sceneCB.cameraPosition = m_camera.GetPosition();
 	m_sceneCB.projectionToWorld = m_camera.GetProjectionToWorld();
+}
+
+ID3D12Resource* DXDevice::CreateUploadBuffer(const void *pData, UINT64 datasize, const wchar_t* resourceName /*= "NameEmpty"*/)
+{
+	ID3D12Resource* ppResource = nullptr;
+	ABORT_IF_FAILED_HR(m_device.Get()->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD), D3D12_HEAP_FLAG_NONE, &CD3DX12_RESOURCE_DESC::Buffer(datasize), D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&ppResource)));
+	
+	ppResource->SetName(resourceName);
+
+	void* pMappedData = nullptr;
+	ppResource->Map(0, nullptr, &pMappedData);
+	memcpy(pMappedData, pData, datasize);
+	ppResource->Unmap(0, nullptr);
+	return ppResource;
 }

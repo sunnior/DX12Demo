@@ -42,9 +42,23 @@ public:
 	DXDevice(WinParam winParam);
 	~DXDevice();
 
+	DXDevice(const DXDevice&) = delete;
+
+
 	void Begin();
 	void Run(float dt);
 	void End();
+
+public:
+	ID3D12Resource* CreateUploadBuffer(const void *pData, UINT64 datasize, const wchar_t* resourceName = L"NameEmpty");
+
+	void CreateBottomLevelAS(
+		D3D12_GPU_VIRTUAL_ADDRESS vertexAddress, UINT vertexCount, UINT64 vertexStride,
+		D3D12_GPU_VIRTUAL_ADDRESS indexAddress, UINT indexCount,
+		ID3D12Resource** ppInstanceDescs,
+		ID3D12Resource** bottomLevelAccelerationStructure);
+
+	void SetInstanceDescs(ID3D12Resource* pResource) { m_instanceDesc = pResource; }
 
 private:
 	void _CreateDXGIAdapter();
@@ -89,10 +103,7 @@ private:
 	void _CreateRaytracingDevice();
 	void _CreateRaytracingDescriptorHeaps();
 
-	void _CreateAccelerationStructures();
-	void _CreateGeometry();
-	void _CreateBottomLevelAS(ID3D12Resource** ppInstanceDescs);
-	void _CreateTopLevelAS(ID3D12Resource* pInstanceDescs);
+	void _CreateTopLevelAS();
 
 	void _CreateRootSignatures();
 	void _CreateRaytracingPSO();
@@ -139,11 +150,8 @@ private:
 
 	Microsoft::WRL::ComPtr<ID3D12Resource> m_raytracingOutput;
 
-	Microsoft::WRL::ComPtr<ID3D12Resource> m_vertexBuffer;
-	Microsoft::WRL::ComPtr<ID3D12Resource> m_indexBuffer;
-
-	Microsoft::WRL::ComPtr<ID3D12Resource> m_bottomLevelAccelerationStructure;
 	Microsoft::WRL::ComPtr<ID3D12Resource> m_topLevelAccelerationStructure;
+	ID3D12Resource* m_instanceDesc{ nullptr };
 
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> m_raytracingGlobalRootSignature;
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> m_raytracingLocalRootSignature;

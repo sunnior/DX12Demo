@@ -18,7 +18,6 @@ static void abortIfFailHr(HRESULT hr)
 #define ABORT_IF_FAILED_HR(hr) abortIfFailHr(hr)
 #define ABORT_IF_FAILED(exp)      if(!(exp)) abort()
 
-void _CreateUploadBuffer(ID3D12Device* pDevice, ID3D12Resource **ppResource, const void *pData, UINT64 datasize, const wchar_t* resourceName = nullptr);
 void _CreateUAVBuffer(ID3D12Device* pDevice, ID3D12Resource **ppResource, UINT64 bufferSize, D3D12_RESOURCE_STATES initialResourceState = D3D12_RESOURCE_STATE_COMMON, const wchar_t* resourceName = nullptr);
 
 WRAPPED_GPU_POINTER _CreateWrappedPointer(ID3D12Device* pDevice, ID3D12RaytracingFallbackDevice* pRTDevice, ID3D12DescriptorHeap* pHeap, UINT index, UINT descriptorSize, ID3D12Resource* pResource, UINT bufferNumElements);
