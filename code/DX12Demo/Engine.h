@@ -27,6 +27,7 @@ private:
 	Keyboard m_keyboard;
 	Camera m_camera;
 	std::unique_ptr<class Model> m_box;
+	std::unique_ptr<class Model> m_box2;
 
 	static Engine* s_instance;
 };

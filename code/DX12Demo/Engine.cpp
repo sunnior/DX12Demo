@@ -87,6 +87,7 @@ void Engine::Init()
 	}
 
 	m_box = std::make_unique<Model>(L"box1", vertices, indices);
+	m_box2 = std::make_unique<Model>(L"box1", vertices, indices);
 }
 
 void Engine::Run()
@@ -100,8 +101,18 @@ void Engine::Run()
 
 		m_keyboard.Update();
 		m_camera.Update(dt);
+		
+		m_box->SetTransform(DirectX::XMFLOAT4X3{ 1, 0, 0, 0,
+			0, 1, 0, 0,
+			0, 0, 1, 2 }
+		);
+		m_box2->SetTransform(DirectX::XMFLOAT4X3{ 
+			1, 0, 0, 0,
+			0, 1, 0, 0,
+			0, 0, 1, -2 });
 
 		m_box->Draw();
+		m_box2->Draw();
 
 		m_device.SetCamera(m_camera.GetProjectionToWorld(), m_camera.GetPosition());
 

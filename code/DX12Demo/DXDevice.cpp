@@ -182,7 +182,7 @@ void DXDevice::_CreateWindow(WinParam winParam)
 
 void DXDevice::Begin()
 {
-	if (m_topLevelAccelerationStructure == nullptr && m_instanceDesc != nullptr)
+	if (m_topLevelAccelerationStructure == nullptr && m_instanceDescs.size() > 0)
 	{
 		_CreateTopLevelAS();
 	}
@@ -279,6 +279,11 @@ void DXDevice::End()
 	ABORT_IF_FAILED_HR(m_swapChain->Present(1, 0));
 }
 
+void DXDevice::AddInstance(const D3D12_RAYTRACING_FALLBACK_INSTANCE_DESC& instanceDesc)
+{
+	m_instanceDescs.push_back(instanceDesc);
+}
+
 void DXDevice::Fence::Init(Microsoft::WRL::ComPtr<ID3D12Device>& device)
 {
 	ABORT_IF_FAILED_HR(device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_fence)));
@@ -333,7 +338,7 @@ void DXDevice::_CreateRaytracingDescriptorHeaps()
 void DXDevice::CreateBottomLevelAS(
 	D3D12_GPU_VIRTUAL_ADDRESS vertexAddress, UINT vertexCount, UINT64 vertexStride, 
 	D3D12_GPU_VIRTUAL_ADDRESS indexAddress, UINT indexCount,
-	ID3D12Resource** ppInstanceDescs,
+	D3D12_RAYTRACING_FALLBACK_INSTANCE_DESC& InstanceDesc, const XMFLOAT4X3& transform,
 	ID3D12Resource** bottomLevelAccelerationStructure)
 {
 	D3D12_RAYTRACING_GEOMETRY_DESC geometryDesc = {};
@@ -367,15 +372,12 @@ void DXDevice::CreateBottomLevelAS(
 	_CreateUAVBuffer(m_device.Get(), &scratchResource, bottomLevelPrebuildInfo.ScratchDataSizeInBytes, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, L"ScratchResource");
 
 	// Create an instance desc for the bottom level acceleration structure.
-	D3D12_RAYTRACING_FALLBACK_INSTANCE_DESC instanceDesc = {};
-	FLOAT trans[] = { 1, 0, 0, 0,
-					  0, 1, 0, 0,
-					  0, 0, 1, 2 };
-	memcpy(instanceDesc.Transform, trans, sizeof(trans));
-	instanceDesc.InstanceMask = 1;
+
+	memcpy(InstanceDesc.Transform, &transform, sizeof(transform));
+	InstanceDesc.InstanceMask = 1;
 	UINT numBufferElements = static_cast<UINT>(bottomLevelPrebuildInfo.ResultDataMaxSizeInBytes) / sizeof(UINT32);
-	instanceDesc.AccelerationStructure = _CreateWrappedPointer(m_device.Get(), m_raytracingDevice.Get(), m_raytracingDescriptorHeap.Get(), static_cast<UINT>(RaytracingDescriptorHeapSlot::BottomLevelWrapperPointer), m_descriptorSize, *bottomLevelAccelerationStructure, numBufferElements);
-	*ppInstanceDescs = CreateUploadBuffer(&instanceDesc, sizeof(instanceDesc), L"InstanceDescs");
+	InstanceDesc.AccelerationStructure = _CreateWrappedPointer(m_device.Get(), m_raytracingDevice.Get(), m_raytracingDescriptorHeap.Get(), static_cast<UINT>(RaytracingDescriptorHeapSlot::BottomLevelWrapperPointer), m_descriptorSize, *bottomLevelAccelerationStructure, numBufferElements);
+	//InstanceDesc = CreateUploadBuffer(&instanceDesc, sizeof(instanceDesc), L"InstanceDescs");
 
 	// Bottom Level Acceleration Structure desc
 	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC bottomLevelBuildDesc{};
@@ -409,10 +411,14 @@ void DXDevice::SetCamera(DirectX::XMFLOAT4X4 projectionToWorld, DirectX::XMFLOAT
 
 void DXDevice::_CreateTopLevelAS()
 {
+
+
+	m_instanceDescResource = CreateUploadBuffer(m_instanceDescs.data(), m_instanceDescs.size() * sizeof(m_instanceDescs[0]), L"InstanceDescs");
+
 	// Get required sizes for an acceleration structure.
 	D3D12_GET_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO_DESC prebuildInfoDesc{};
 	prebuildInfoDesc.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
-	prebuildInfoDesc.NumDescs = 1;
+	prebuildInfoDesc.NumDescs = m_instanceDescs.size();
 	prebuildInfoDesc.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
 	prebuildInfoDesc.pGeometryDescs = nullptr;
 
@@ -439,9 +445,9 @@ void DXDevice::_CreateTopLevelAS()
 
 		topLevelBuildDesc.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
 		topLevelBuildDesc.DestAccelerationStructureData = { m_topLevelAccelerationStructure->GetGPUVirtualAddress(), topLevelPrebuildInfo.ResultDataMaxSizeInBytes };
-		topLevelBuildDesc.NumDescs = 1;
+		topLevelBuildDesc.NumDescs = m_instanceDescs.size();
 		topLevelBuildDesc.pGeometryDescs = nullptr;
-		topLevelBuildDesc.InstanceDescs = m_instanceDesc->GetGPUVirtualAddress();
+		topLevelBuildDesc.InstanceDescs = m_instanceDescResource->GetGPUVirtualAddress();
 		topLevelBuildDesc.ScratchAccelerationStructureData = { scratchResource->GetGPUVirtualAddress(), scratchResource->GetDesc().Width };
 	}
 

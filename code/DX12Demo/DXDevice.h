@@ -1,6 +1,7 @@
 #ifndef __DXDEVICE_HEADER_H__
 #define __DXDEVICE_HEADER_H__
 
+#include <vector>
 #include <Windows.h>
 #include <d3d12.h>
 #include <wrl.h>
@@ -49,15 +50,16 @@ public:
 	void End();
 
 public:
+	void AddInstance(const D3D12_RAYTRACING_FALLBACK_INSTANCE_DESC& instanceDesc);
+
 	ID3D12Resource* CreateUploadBuffer(const void *pData, UINT64 datasize, const wchar_t* resourceName = L"NameEmpty");
 
 	void CreateBottomLevelAS(
 		D3D12_GPU_VIRTUAL_ADDRESS vertexAddress, UINT vertexCount, UINT64 vertexStride,
 		D3D12_GPU_VIRTUAL_ADDRESS indexAddress, UINT indexCount,
-		ID3D12Resource** ppInstanceDescs,
+		D3D12_RAYTRACING_FALLBACK_INSTANCE_DESC& ppInstanceDesc, const DirectX::XMFLOAT4X3& transform,
 		ID3D12Resource** bottomLevelAccelerationStructure);
 
-	void SetInstanceDescs(ID3D12Resource* pResource) { m_instanceDesc = pResource; }
 	void SetCamera(DirectX::XMFLOAT4X4 projectionToWorld, DirectX::XMFLOAT4 cameraPosition);
 
 private:
@@ -150,7 +152,6 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12Resource> m_raytracingOutput;
 
 	Microsoft::WRL::ComPtr<ID3D12Resource> m_topLevelAccelerationStructure;
-	ID3D12Resource* m_instanceDesc{ nullptr };
 
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> m_raytracingGlobalRootSignature;
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> m_raytracingLocalRootSignature;
@@ -165,14 +166,14 @@ private:
 
 	WRAPPED_GPU_POINTER m_topLevelAccelerationStructurePointer;
 
+	std::vector<D3D12_RAYTRACING_FALLBACK_INSTANCE_DESC> m_instanceDescs;
+	Microsoft::WRL::ComPtr<ID3D12Resource> m_instanceDescResource;
+
 	Microsoft::WRL::ComPtr<ID3D12Resource> m_missShaderTable;
 	Microsoft::WRL::ComPtr<ID3D12Resource> m_hitGroupShaderTable;
 	Microsoft::WRL::ComPtr<ID3D12Resource> m_rayGenShaderTable;
 
 private:
-	typedef UINT16 Index_t;
-	typedef DirectX::XMFLOAT3 Vertex_t[2];
-
 	SceneConstantBuffer m_sceneCB;
 
 };

@@ -4,6 +4,7 @@
 #include <DirectXMath.h>
 #include <d3d12.h>
 #include <wrl.h>
+#include "D3D12RaytracingFallback.h"
 
 class Model
 {
@@ -20,6 +21,8 @@ public:
 
 	void Draw();
 
+	void SetTransform(const DirectX::XMFLOAT4X3& transform);
+
 private:
 	std::vector<Vertex_t> m_vertices;
 	std::vector<Index_t> m_indices;
@@ -28,7 +31,9 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12Resource> m_indexBuffer;
 
 	Microsoft::WRL::ComPtr<ID3D12Resource> m_bottomLevelAccelerationStructure;
-	Microsoft::WRL::ComPtr<ID3D12Resource> m_instanceDescs;
+	D3D12_RAYTRACING_FALLBACK_INSTANCE_DESC m_instanceDesc;
+
+	DirectX::XMFLOAT4X3 m_transform;
 
 };
 

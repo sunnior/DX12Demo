@@ -19,13 +19,18 @@ void Model::Draw()
 {
 	DXDevice& device = Engine::GetInstance()->GetDevice();
 	//todo async build.
-	if (m_bottomLevelAccelerationStructure == nullptr && m_instanceDescs == nullptr)
+	if (m_bottomLevelAccelerationStructure == nullptr)
 	{
 		device.CreateBottomLevelAS(
 			m_vertexBuffer->GetGPUVirtualAddress(), static_cast<UINT>(m_vertexBuffer->GetDesc().Width) / sizeof(Vertex_t), sizeof(Vertex_t),
 			m_indexBuffer->GetGPUVirtualAddress(), static_cast<UINT>(m_indexBuffer->GetDesc().Width) / sizeof(Index_t),
-			&m_instanceDescs,
+			m_instanceDesc, m_transform,
 			&m_bottomLevelAccelerationStructure);
 	}
-	device.SetInstanceDescs(m_instanceDescs.Get());
+	device.AddInstance(m_instanceDesc);
+}
+
+void Model::SetTransform(const DirectX::XMFLOAT4X3& transform)
+{
+	m_transform = transform;
 }
