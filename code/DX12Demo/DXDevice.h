@@ -11,7 +11,6 @@
 #include <DirectXMath.h>
 #define LANGUAGE_CPP
 #include "RaytracingHlslCompat.h"
-#include "Camera.h"
 
 class DXDevice
 {
@@ -46,7 +45,7 @@ public:
 
 
 	void Begin();
-	void Run(float dt);
+	void Run();
 	void End();
 
 public:
@@ -59,6 +58,7 @@ public:
 		ID3D12Resource** bottomLevelAccelerationStructure);
 
 	void SetInstanceDescs(ID3D12Resource* pResource) { m_instanceDesc = pResource; }
+	void SetCamera(DirectX::XMFLOAT4X4 projectionToWorld, DirectX::XMFLOAT4 cameraPosition);
 
 private:
 	void _CreateDXGIAdapter();
@@ -110,7 +110,6 @@ private:
 	void _CreateShaderResources();
 	void _CreateShaderTables();
 
-	void _UpdateMatrix();
 private:
 	enum class GlobalRootSignatureParams {
 		OutputViewSlot = 0,
@@ -174,7 +173,6 @@ private:
 	typedef UINT16 Index_t;
 	typedef DirectX::XMFLOAT3 Vertex_t[2];
 
-	Camera m_camera;
 	SceneConstantBuffer m_sceneCB;
 
 };

@@ -22,10 +22,7 @@ DXDevice::DXDevice(WinParam winParam)
 	, m_backbufferFormat{ DXGI_FORMAT_R8G8B8A8_UNORM }
 	, m_winHeight{ static_cast<FLOAT>(winParam.height) }
 	, m_winWidth{ static_cast<FLOAT>(winParam.width) }
-	, m_camera(static_cast<FLOAT>(winParam.width)/static_cast<FLOAT>(winParam.height))
 {
-	_UpdateMatrix();
-
 	_EnableRaytracing();
 
 	_CreateDXGIAdapter();
@@ -200,10 +197,8 @@ void DXDevice::Begin()
 	m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
 }
 
-void DXDevice::Run(float dt)
+void DXDevice::Run()
 {
-	m_camera.Update(dt);
-
 	uint8_t* mappedData;
 	// We don't unmap this until the app closes. Keeping buffer mapped for the lifetime of the resource is okay.
 	CD3DX12_RANGE readRange(0, 0);        // We do not intend to read from this resource on the CPU.
@@ -216,8 +211,8 @@ void DXDevice::Run(float dt)
 	struct RootArguments {
 		SceneConstantBuffer cb;
 	} rootArguments;
-	rootArguments.cb.cameraPosition = m_camera.GetPosition();
-	rootArguments.cb.projectionToWorld = m_camera.GetProjectionToWorld();
+	rootArguments.cb.cameraPosition = m_sceneCB.cameraPosition;
+	rootArguments.cb.projectionToWorld = m_sceneCB.projectionToWorld;
 	UINT rootArgumentsSize = sizeof(rootArguments);
 
 	// Shader record = {{ Shader ID }, { RootArguments }}
@@ -406,6 +401,12 @@ void DXDevice::CreateBottomLevelAS(
 	m_fences[0].Wait(m_fenceEvent);
 }
 
+void DXDevice::SetCamera(DirectX::XMFLOAT4X4 projectionToWorld, DirectX::XMFLOAT4 cameraPosition)
+{
+	m_sceneCB.cameraPosition = cameraPosition;
+	m_sceneCB.projectionToWorld = projectionToWorld;
+}
+
 void DXDevice::_CreateTopLevelAS()
 {
 	// Get required sizes for an acceleration structure.
@@ -507,13 +508,13 @@ void DXDevice::_CreateRaytracingPSO()
 	hitGroup->SetClosestHitShaderImport(s_closestHitShaderName);
 	hitGroup->SetHitGroupExport(s_hitGroupName);
 
+	/*
 	auto shaderConfig = dxrPipeline.CreateSubobject<CD3D12_RAYTRACING_SHADER_CONFIG_SUBOBJECT>();
 	//payload and attributes' size in bytes
 	UINT payloadSize = sizeof(XMFLOAT4); // float4 pixelColor
 	UINT attrSize = sizeof(XMFLOAT2); // float2 barycentrics
 	shaderConfig->Config(payloadSize, attrSize);
 
-/*
 	auto shaderConfigAssociation = dxrPipeline.CreateSubobject<CD3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION_SUBOBJECT>();
 	shaderConfigAssociation->SetSubobjectToAssociate(*shaderConfig);
 	shaderConfigAssociation->AddExport(s_raygenShaderName);
@@ -604,14 +605,6 @@ void DXDevice::_CreateShaderTables()
 
 	ShaderRecord hitGroupShaderRecord(hitGroupShaderIdentifier, shaderIdentifierSize, nullptr, 0);
 	hitGroupShaderRecord.AllocateAsUploadBuffer(m_device.Get(), &m_hitGroupShaderTable, L"HitGroupShaderTable");
-}
-
-void DXDevice::_UpdateMatrix()
-{
-	const float fovAngleY = 45.0f;
-
-	m_sceneCB.cameraPosition = m_camera.GetPosition();
-	m_sceneCB.projectionToWorld = m_camera.GetProjectionToWorld();
 }
 
 ID3D12Resource* DXDevice::CreateUploadBuffer(const void *pData, UINT64 datasize, const wchar_t* resourceName /*= "NameEmpty"*/)

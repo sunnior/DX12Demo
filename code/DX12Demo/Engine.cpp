@@ -7,6 +7,7 @@ Engine* Engine::s_instance = nullptr;
 
 Engine::Engine(DXDevice::WinParam winParam)
 	: m_device(winParam)
+	, m_camera(static_cast<FLOAT>(winParam.width) / static_cast<FLOAT>(winParam.height))
 {
 	if (!s_instance)
 	{
@@ -98,11 +99,14 @@ void Engine::Run()
 		if (_HandleMessage()) { break; }
 
 		m_keyboard.Update();
+		m_camera.Update(dt);
 
 		m_box->Draw();
 
+		m_device.SetCamera(m_camera.GetProjectionToWorld(), m_camera.GetPosition());
+
 		m_device.Begin();
-		m_device.Run(dt);
+		m_device.Run();
 		m_device.End();
 
 		DWORD endTime = Timer::GetTimeMS();

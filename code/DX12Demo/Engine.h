@@ -4,6 +4,7 @@
 #include <memory>
 #include "DXDevice.h"
 #include "Keyboard.h"
+#include "Camera.h"
 
 class Engine
 {
@@ -24,6 +25,7 @@ private:
 private:
 	DXDevice m_device;
 	Keyboard m_keyboard;
+	Camera m_camera;
 	std::unique_ptr<class Model> m_box;
 
 	static Engine* s_instance;
