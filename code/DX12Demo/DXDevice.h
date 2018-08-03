@@ -126,8 +126,9 @@ private:
 
 	enum class RaytracingDescriptorHeapSlot {
 		OutputTexture,
-		BottomLevelWrapperPointer,
 		TopLevelWrapperPointer,
+		BottomLevelWrapperPointer_Begin = 2,
+		BottomLevelWrapperPointer_End = 5,
 		Count
 	};
 
@@ -168,6 +169,7 @@ private:
 
 	std::vector<D3D12_RAYTRACING_FALLBACK_INSTANCE_DESC> m_instanceDescs;
 	Microsoft::WRL::ComPtr<ID3D12Resource> m_instanceDescResource;
+	int m_bottomHeapIndex{ 0 };
 
 	Microsoft::WRL::ComPtr<ID3D12Resource> m_missShaderTable;
 	Microsoft::WRL::ComPtr<ID3D12Resource> m_hitGroupShaderTable;

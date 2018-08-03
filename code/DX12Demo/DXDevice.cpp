@@ -376,8 +376,9 @@ void DXDevice::CreateBottomLevelAS(
 	memcpy(InstanceDesc.Transform, &transform, sizeof(transform));
 	InstanceDesc.InstanceMask = 1;
 	UINT numBufferElements = static_cast<UINT>(bottomLevelPrebuildInfo.ResultDataMaxSizeInBytes) / sizeof(UINT32);
-	InstanceDesc.AccelerationStructure = _CreateWrappedPointer(m_device.Get(), m_raytracingDevice.Get(), m_raytracingDescriptorHeap.Get(), static_cast<UINT>(RaytracingDescriptorHeapSlot::BottomLevelWrapperPointer), m_descriptorSize, *bottomLevelAccelerationStructure, numBufferElements);
+	InstanceDesc.AccelerationStructure = _CreateWrappedPointer(m_device.Get(), m_raytracingDevice.Get(), m_raytracingDescriptorHeap.Get(), static_cast<UINT>(RaytracingDescriptorHeapSlot::BottomLevelWrapperPointer_Begin) + m_bottomHeapIndex, m_descriptorSize, *bottomLevelAccelerationStructure, numBufferElements);
 	//InstanceDesc = CreateUploadBuffer(&instanceDesc, sizeof(instanceDesc), L"InstanceDescs");
+	++m_bottomHeapIndex;
 
 	// Bottom Level Acceleration Structure desc
 	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC bottomLevelBuildDesc{};
